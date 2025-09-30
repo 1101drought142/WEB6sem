@@ -1,0 +1,19 @@
+{% load static %}
+
+{% if is_paginated %}
+<div class="pagination">
+    {% if page_obj.has_previous %}
+        <a href="?page=1{{ query_string }}" class="page-link">Первая</a>
+        <a href="?page={{ page_obj.previous_page_number }}{{ query_string }}" class="page-link">Назад</a>
+    {% endif %}
+    
+    <span class="current-page">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+    
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{{ query_string }}" class="page-link">Вперёд</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{{ query_string }}" class="page-link">Последняя</a>
+    {% endif %}
+</div>
+
+<link rel="stylesheet" href="{% static 'css/pagination.css' %}" />
+{% endif %}

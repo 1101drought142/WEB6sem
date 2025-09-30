@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% load static %}
+{% load custom_tags %}
+
+{% block seo %}
+<title>Главная страница</title>
+{% endblock seo %}
+
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'home.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<section class="homepage">
+    <!-- Hero секция -->
+    <div class="hero-section">
+        <h1 class="hero-title">Healthcare Platform</h1>
+        <p class="hero-subtitle">Медицинская платформа для общения пациентов с докторами</p>
+    </div>
+
+    <!-- О платформе -->
+    <div class="about-section">
+        <h2 class="section-title">О платформе</h2>
+        <p class="section-text">
+            Healthcare Platform — это современная медицинская платформа, где пациенты могут получить 
+            квалифицированную консультацию у специалистов различных направлений через систему заявок и чатов.
+        </p>
+    </div>
+
+    <!-- Специализации -->
+    <div class="specializations-section">
+        <h2 class="section-title">Наши специалисты</h2>
+        <div class="specializations-grid">
+            <div class="spec-card">
+                <div class="spec-icon">🥗</div>
+                <h3 class="spec-title">Диетолог</h3>
+                <p class="spec-description">Консультации по правильному питанию и составлению индивидуального рациона</p>
+            </div>
+            <div class="spec-card">
+                <div class="spec-icon">🏃</div>
+                <h3 class="spec-title">Спортивный врач</h3>
+                <p class="spec-description">Помощь в достижении спортивных целей и восстановлении после травм</p>
+            </div>
+            <div class="spec-card">
+                <div class="spec-icon">🧠</div>
+                <h3 class="spec-title">Психолог</h3>
+                <p class="spec-description">Профессиональная психологическая поддержка и консультирование</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Как это работает -->
+    <div class="how-it-works-section">
+        <h2 class="section-title">Как это работает</h2>
+        <div class="steps-container">
+            <div class="step-item">
+                <div class="step-number">1</div>
+                <h3 class="step-title">Создайте заявку</h3>
+                <p class="step-description">Выберите специализацию доктора и опишите вашу проблему</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step-item">
+                <div class="step-number">2</div>
+                <h3 class="step-title">Дождитесь доктора</h3>
+                <p class="step-description">Специалист выберет вашу заявку и примет её в работу</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step-item">
+                <div class="step-number">3</div>
+                <h3 class="step-title">Общайтесь в чате</h3>
+                <p class="step-description">Получите консультацию и обменивайтесь файлами с доктором</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Призыв к действию -->
+    <div class="cta-section">
+        {% if user.is_authenticated %}
+            {% if user.doctor %}
+                <a href="{% url 'chat:doctor_requests' %}" class="cta-button">Посмотреть заявки</a>
+            {% else %}
+                <a href="{% url 'chat:request_create' %}" class="cta-button">Создать заявку</a>
+            {% endif %}
+        {% else %}
+            <a href="{% url 'personal:register' %}" class="cta-button">Зарегистрироваться</a>
+            <a href="{% url 'personal:login' %}" class="cta-button cta-button-secondary">Войти</a>
+        {% endif %}
+    </div>
+
+    <!-- Форма обратной связи -->
+    <div class="feedback-section">
+        <h2 class="section-title">Обратная связь</h2>
+        <p class="section-text">Есть вопросы или предложения? Мы будем рады услышать ваше мнение!</p>
+        
+        <div class="feedback-form-container">
+            <form method="post" class="feedback-form" id="feedback-form" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        {{ feedback_form.name.label_tag }}
+                        {{ feedback_form.name }}
+                        {% if feedback_form.name.errors %}
+                            <ul class="error-list">
+                                {% for error in feedback_form.name.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        {{ feedback_form.email.label_tag }}
+                        {{ feedback_form.email }}
+                        {% if feedback_form.email.errors %}
+                            <ul class="error-list">
+                                {% for error in feedback_form.email.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    {{ feedback_form.subject.label_tag }}
+                    {{ feedback_form.subject }}
+                    {% if feedback_form.subject.errors %}
+                        <ul class="error-list">
+                            {% for error in feedback_form.subject.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    {{ feedback_form.message.label_tag }}
+                    {{ feedback_form.message }}
+                    {% if feedback_form.message.errors %}
+                        <ul class="error-list">
+                            {% for error in feedback_form.message.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    {{ feedback_form.screenshot.label_tag }}
+                    {{ feedback_form.screenshot }}
+                    {% if feedback_form.screenshot.help_text %}
+                        <small class="form-help-text">{{ feedback_form.screenshot.help_text }}</small>
+                    {% endif %}
+                    {% if feedback_form.screenshot.errors %}
+                        <ul class="error-list">
+                            {% for error in feedback_form.screenshot.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+                
+                <button type="submit" class="feedback-submit-btn">Отправить сообщение</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}
+
+{% block scripts %}
+<script src="{% static 'feedback.js' %}" defer></script>
+{% endblock scripts %}
+
+</html>

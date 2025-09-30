@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Вход - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/forms.css' %}" />
+<style>
+    .login-form {
+        max-width: 400px;
+    }
+    .register-link {
+        text-align: center;
+        margin-top: 20px;
+    }
+</style>
+{% endblock styles %}
+
+{% block content %}
+<div class="login-form form-container">
+    <h1>Вход в систему</h1>
+    
+    {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <ul class="error-list">
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+        <button type="submit" class="btn-submit">Войти</button>
+    </form>
+    
+    <div class="register-link">
+        <p>Нет аккаунта? <a href="{% url 'personal:register' %}">Зарегистрироваться</a></p>
+    </div>
+</div>
+{% endblock content %}

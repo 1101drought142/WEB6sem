@@ -1,0 +1,12 @@
+venv/
+zip/
+docx/
+.env
+
+
+#*.sqlite3
+BRD.md
+testquest.md
+README.md
+create_test_data.py
+add_more_news.py

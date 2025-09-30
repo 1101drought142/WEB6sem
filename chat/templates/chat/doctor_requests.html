@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Заявки - Healthcare (Доктор)</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/requests.css' %}" />
+<link rel="stylesheet" href="{% static 'css/pagination.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="requests-container">
+    <div class="requests-header">
+        <h1>Заявки пациентов</h1>
+        <div class="filter-tabs">
+            <a href="?filter=available" class="tab {% if filter_type == 'available' %}active{% endif %}">
+                Доступные заявки
+            </a>
+            <a href="?filter=my" class="tab {% if filter_type == 'my' %}active{% endif %}">
+                Мои заявки
+            </a>
+        </div>
+    </div>
+    
+    {% if requests %}
+        <div class="requests-list">
+            {% for request in requests %}
+            <div class="request-card">
+                <div class="request-header">
+                    <div>
+                        <h3 class="request-title">{{ request.title }}</h3>
+                        <div class="request-meta">
+                            {{ request.created_at|date:"d.m.Y H:i" }}
+                        </div>
+                    </div>
+                    <span class="specialization-badge">
+                        {{ request.get_specialization_display }}
+                    </span>
+                </div>
+                
+                <div class="request-description">
+                    {{ request.description|truncatewords:50 }}
+                </div>
+                
+                <div class="request-footer">
+                    <div class="patient-info">
+                        <strong>Пациент:</strong> {{ request.patient.username }}
+                    </div>
+                    
+                    {% if filter_type == 'available' %}
+                        <form method="post" action="{% url 'chat:request_accept' request.pk %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-accept">✅ Принять заявку</button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'chat:chat_detail' request.chat.pk %}" class="btn-chat">💬 Открыть чат</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if is_paginated %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?filter={{ filter_type }}&page=1">Первая</a>
+                <a href="?filter={{ filter_type }}&page={{ page_obj.previous_page_number }}">Назад</a>
+            {% endif %}
+            
+            <span class="current">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+            
+            {% if page_obj.has_next %}
+                <a href="?filter={{ filter_type }}&page={{ page_obj.next_page_number }}">Вперёд</a>
+                <a href="?filter={{ filter_type }}&page={{ page_obj.paginator.num_pages }}">Последняя</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h3>Нет доступных заявок</h3>
+            <p>
+                {% if filter_type == 'my' %}
+                    Вы ещё не приняли ни одной заявки
+                {% else %}
+                    Пока нет новых заявок по вашей специализации
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+</div>
+{% endblock content %}

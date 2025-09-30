@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Регистрация - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/forms.css' %}" />
+<style>
+    .registration-form {
+        max-width: 500px;
+    }
+    .login-link {
+        text-align: center;
+        margin-top: 20px;
+    }
+</style>
+{% endblock styles %}
+
+{% block content %}
+<div class="registration-form form-container">
+    <h1>Регистрация</h1>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}
+                    <small class="helptext">{{ field.help_text }}</small>
+                {% endif %}
+                {% if field.errors %}
+                    <ul class="error-list">
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+        <button type="submit" class="btn-submit">Зарегистрироваться</button>
+    </form>
+    
+    <div class="login-link">
+        <p>Уже есть аккаунт? <a href="{% url 'personal:login' %}">Войти</a></p>
+    </div>
+</div>
+{% endblock content %}

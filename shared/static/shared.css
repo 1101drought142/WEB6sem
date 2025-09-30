@@ -1,0 +1,221 @@
+/* Общие стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+}
+
+/* Стили шапки */
+.header {
+    width: 100%;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header_wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    gap: 30px;
+}
+
+.header_icon {
+    flex-shrink: 0;
+}
+
+.header_icon img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+}
+
+.header_nav {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.header_item {
+    margin: 0;
+}
+
+.header_item a,
+.header_item button {
+    display: inline-block;
+    padding: 10px 18px;
+    color: #555;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.header_item a:hover,
+.header_item button:hover {
+    background: #e8f5e9;
+    color: #4CAF50;
+}
+
+.header_item form {
+    display: inline;
+    margin: 0;
+}
+
+.header_item button {
+    padding: 10px 18px;
+}
+
+/* Активная ссылка */
+.header_item a.active {
+    background: #4CAF50;
+    color: white;
+}
+
+.advertisment_container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Адаптивность для шапки */
+@media (max-width: 768px) {
+    .header_wrapper {
+        flex-direction: column;
+        padding: 15px;
+        gap: 15px;
+    }
+    
+    .header_nav {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .header_item a,
+    .header_item button {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+}
+
+/* Уведомления (messages) */
+.notifications-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+}
+
+.alert {
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    animation: slideInRight 0.3s ease-out;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.alert::before {
+    margin-right: 10px;
+    font-size: 20px;
+}
+
+/* Типы уведомлений */
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.alert-success::before {
+    content: "✅";
+}
+
+.alert-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border-left: 4px solid #17a2b8;
+}
+
+.alert-info::before {
+    content: "ℹ️";
+}
+
+.alert-warning {
+    background: #fff3cd;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+
+.alert-warning::before {
+    content: "⚠️";
+}
+
+.alert-error,
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.alert-error::before,
+.alert-danger::before {
+    content: "❌";
+}
+
+/* Автоматическое скрытие через 5 секунд */
+.alert {
+    animation: slideInRight 0.3s ease-out, fadeOut 0.5s ease-out 4.5s forwards;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: translateX(400px);
+    }
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+    .notifications-container {
+        top: 70px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+}

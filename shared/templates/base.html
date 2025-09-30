@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    {% block seo %}{% endblock seo %}
+    <link rel="stylesheet" href="{% static 'shared.css' %}" >
+    {% block styles %}{% endblock styles %}
+</head>
+<body>
+    <header>
+        <div class="header_wrapper">
+            <div class="header_icon">
+                <img src="{% static 'icon.png' %}" alt="logo">
+            </div>
+            <nav class="header_nav">
+                <div class="header_item">
+                    <a href="{% url 'homepage' %}">Главная</a>
+                </div>
+                <div class="header_item">
+                    <a href="{% url 'news' %}">Новости</a>
+                </div>
+                
+                {% if user.is_authenticated %}
+                    {% if user.doctor %}
+                        {# Меню для доктора #}
+                        <div class="header_item">
+                            <a href="{% url 'chat:doctor_requests' %}">Заявки</a>
+                        </div>
+                        <div class="header_item">
+                            <a href="{% url 'chat:doctor_chats' %}">Чаты</a>
+                        </div>
+                    {% else %}
+                        {# Меню для пациента #}
+                        <div class="header_item">
+                            <a href="{% url 'chat:request_create' %}">Создать заявку</a>
+                        </div>
+                        <div class="header_item">
+                            <a href="{% url 'chat:patient_chats' %}">Мои заявки</a>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="header_item">
+                        <a href="{% url 'personal:profile' %}">Профиль</a>
+                    </div>
+                    <div class="header_item">
+                        <form method="post" action="{% url 'personal:logout' %}">
+                            {% csrf_token %}
+                            <button type="submit">Выход</button>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="header_item">
+                        <a href="{% url 'personal:login' %}">Вход</a>
+                    </div>
+                    <div class="header_item">
+                        <a href="{% url 'personal:register' %}">Регистрация</a>
+                    </div>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+    
+    <!-- Уведомления -->
+    {% if messages %}
+    <div class="notifications-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    {% block content %}
+    {% endblock %}
+</body>
+<link rel="stylesheet" href="{% static 'shared.js' %}" >
+{% block scripts %}{% endblock scripts %}
+</html>

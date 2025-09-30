@@ -1,0 +1,10 @@
+.header {
+    width: 100%;
+}
+.header_wrapper {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 20px;
+    align-items: center;
+}

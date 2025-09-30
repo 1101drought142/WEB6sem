@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Новости - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/news.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="news-page">
+    <!-- Фильтры -->
+    <section class="filters-section">
+        <form action="" id="filter_form" method="get">
+            <h3>📂 Категории:</h3>
+            <div class="category_wrapper">
+                <label>
+                    <input type="radio" name="category" value="" class="radio_inputs" {% if not filter_category %}checked{% endif %}>
+                    Все
+                </label>
+                {% for category in categories %}
+                <label>
+                    <input type="radio" name="category" class="radio_inputs" value="{{ category.slug }}" {% if filter_category == category.slug %}checked{% endif %}>
+                    {{ category.name }}
+                </label>
+                {% endfor %}
+            </div>
+            
+            <h3>🏷️ Теги:</h3>
+            <div class="tag_wrapper">
+                {% for tag in tags %}
+                <label>
+                    <input type="checkbox" name="tags" class="checkbox_inputs" value="{{ tag.slug }}" {% if tag.slug in filter_tags %}checked{% endif %}>
+                    {{ tag.name }}
+                </label>
+                {% endfor %}
+            </div>
+        </form>
+    </section>
+
+    <!-- Список новостей -->
+    {% if news %}
+    <div class="news-grid">
+        {% for news_item in news %}
+        <a href="{% url 'news_detail' news_item.slug %}" class="news-card">
+            <div class="news-card-image">
+                {% if news_item.image %}
+                    <img src="{{ news_item.image.url }}" alt="{{ news_item.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    📰
+                {% endif %}
+            </div>
+            <div class="news-card-content">
+                <h2 class="news-card-title">{{ news_item.name }}</h2>
+                <div class="news-card-description">
+                    {{ news_item.description|safe|truncatewords:20 }}
+                </div>
+                <div class="news-card-footer">
+                    {% if news_item.is_good %}
+                    <span class="news-card-badge">Популярно</span>
+                    {% else %}
+                    <span></span>
+                    {% endif %}
+                    {% if news_item.category %}
+                    <span class="news-card-meta">{{ news_item.category.name }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="news-empty">
+        <div class="news-empty-icon">📭</div>
+        <h3>Новостей не найдено</h3>
+        <p>Попробуйте изменить фильтры или вернуться позже</p>
+    </div>
+    {% endif %}
+
+    <!-- Пагинация -->
+    {% include 'pagination.html' %}
+</div>
+
+<script>
+    // Автоматическая отправка формы при изменении фильтров
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('filter_form');
+        const radioInputs = document.querySelectorAll('.radio_inputs');
+        const checkboxInputs = document.querySelectorAll('.checkbox_inputs');
+        
+        radioInputs.forEach(radio => {
+            radio.addEventListener('change', () => form.submit());
+        });
+        
+        checkboxInputs.forEach(checkbox => {
+            checkbox.addEventListener('change', () => form.submit());
+        });
+    });
+</script>
+{% endblock content %}

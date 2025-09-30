@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Чат - {{ chat.request.title }} - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/chat.css' %}" />
+<link rel="stylesheet" href="{% static 'css/forms.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="chat-page-wrapper">
+    {% if user.doctor %}
+        <a href="{% url 'chat:doctor_requests' %}?filter=my" class="back-link">← Назад к заявкам</a>
+    {% else %}
+        <a href="{% url 'chat:patient_chats' %}" class="back-link">← Назад к моим заявкам</a>
+    {% endif %}
+</div>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <h2>{{ chat.request.title }}</h2>
+        <div class="chat-info">
+            {% if user.doctor %}
+                Пациент: {{ chat.request.patient.username }}
+            {% else %}
+                Доктор: {{ chat.request.doctor.get_full_name }}
+            {% endif %}
+            | Специализация: {{ chat.request.get_specialization_display }}
+        </div>
+    </div>
+    
+    <div class="messages-container" id="messages-container">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="message {% if message.sender == user %}own{% endif %}">
+                <div class="message-bubble">
+                    {% if message.sender != user %}
+                        <div class="message-sender">
+                            {% if message.sender.doctor %}
+                                Доктор {{ message.sender.doctor.get_full_name }}
+                            {% else %}
+                                {{ message.sender.username }}
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    
+                    {% if message.text %}
+                        <div class="message-text">{{ message.text }}</div>
+                    {% endif %}
+                    
+                    {% if message.file %}
+                        <div class="message-file">
+                            <a href="{{ message.file.url }}" target="_blank">
+                                📎 {{ message.file.name|slice:"15:" }}
+                            </a>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="message-time">
+                        {{ message.created_at|date:"d.m.Y H:i" }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-chat">
+                <div class="empty-chat-icon">💬</div>
+                <h3>Начните диалог</h3>
+                <p>Пока здесь нет сообщений. Напишите первое сообщение!</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="message-form">
+        <form method="post" action="{% url 'chat:message_send' chat.pk %}" enctype="multipart/form-data" id="message-form">
+            {% csrf_token %}
+            
+            <div class="message-input-wrapper">
+                <textarea 
+                    name="text" 
+                    class="message-input" 
+                    placeholder="Введите сообщение..."
+                    id="message-input"
+                    rows="1"
+                ></textarea>
+                
+                <label class="file-input-label" title="Прикрепить файл">
+                    📎
+                    <input type="file" name="file" id="file-input">
+                </label>
+                
+                <button type="submit" class="btn-send">Отправить</button>
+            </div>
+            
+            <div id="file-preview" class="file-preview" style="display: none;"></div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Автоматическая прокрутка вниз при загрузке
+    const messagesContainer = document.getElementById('messages-container');
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Автоматическое изменение размера textarea
+    const messageInput = document.getElementById('message-input');
+    messageInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+    
+    // Отправка по Ctrl/Cmd + Enter
+    messageInput.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            document.getElementById('message-form').submit();
+        }
+    });
+    
+    // Превью прикрепленного файла
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            const fileName = this.files[0].name;
+            filePreview.textContent = `Выбран файл: ${fileName}`;
+            filePreview.style.display = 'block';
+        } else {
+            filePreview.style.display = 'none';
+        }
+    });
+    
+    // Автоматическое обновление чата (опционально, без WebSocket)
+    // setInterval(() => {
+    //     location.reload();
+    // }, 30000); // Обновление каждые 30 секунд
+});
+</script>
+{% endblock content %}

@@ -1,0 +1,239 @@
+/* Стили для заявок */
+
+.requests-container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 20px;
+}
+
+.requests-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.requests-header h1 {
+    margin: 0;
+    color: #333;
+}
+
+.btn-create {
+    padding: 10px 20px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.btn-create:hover {
+    background: #45a049;
+}
+
+/* Таблица заявок */
+.requests-table {
+    width: 100%;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.requests-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.requests-table thead {
+    background: #f5f5f5;
+}
+
+.requests-table thead th {
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 2px solid #ddd;
+}
+
+.requests-table tbody tr {
+    border-bottom: 1px solid #eee;
+    transition: background 0.2s;
+}
+
+.requests-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.requests-table tbody td {
+    padding: 15px;
+    color: #333;
+}
+
+/* Карточки заявок */
+.requests-list {
+    display: grid;
+    gap: 20px;
+}
+
+.request-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.request-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 15px;
+}
+
+.request-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 5px 0;
+}
+
+.request-meta {
+    font-size: 12px;
+    color: #999;
+}
+
+.request-description {
+    margin: 15px 0;
+    color: #555;
+    line-height: 1.5;
+}
+
+.request-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.patient-info {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Статусы и значки */
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-waiting {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-assigned {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-waiting-doctor,
+.status-waiting_doctor {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.status-doctor-replied,
+.status-doctor_replied {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.specialization-badge {
+    padding: 5px 10px;
+    background: #e3f2fd;
+    color: #1976d2;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Кнопки */
+.btn-accept {
+    padding: 8px 20px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-accept:hover {
+    background: #45a049;
+}
+
+.btn-chat {
+    padding: 6px 12px;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.btn-chat:hover {
+    background: #0b7dda;
+}
+
+/* Фильтры */
+.filter-tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.tab {
+    padding: 10px 20px;
+    background: #f5f5f5;
+    color: #333;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.tab:hover {
+    background: #e0e0e0;
+}
+
+.tab.active {
+    background: #4CAF50;
+    color: white;
+}
+
+/* Пустое состояние */
+.empty-state {
+    text-align: center;
+    padding: 50px;
+    color: #999;
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Мои чаты - Healthcare (Доктор)</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/chat.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="chats-container">
+    <div class="chats-sidebar">
+        <div class="sidebar-header">
+            <h2>Мои чаты</h2>
+        </div>
+        
+        <div class="chat-list">
+            {% if chats %}
+                {% for chat in chats %}
+                <a href="{% url 'chat:chat_detail' chat.pk %}" class="chat-item">
+                    <div class="chat-item-header">
+                        <div class="chat-title">{{ chat.request.title|truncatewords:5 }}</div>
+                        {% if chat.unread_count > 0 %}
+                            <span class="unread-badge">{{ chat.unread_count }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="chat-patient">
+                        {{ chat.request.patient.username }}
+                    </div>
+                    <div class="chat-time">
+                        {{ chat.updated_at|date:"d.m.Y H:i" }}
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty-sidebar">
+                    <p>💬</p>
+                    <p>У вас пока нет активных чатов</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="chat-content">
+        <div class="select-chat-message">
+            <div class="select-chat-icon">💬</div>
+            <h3>Выберите чат</h3>
+            <p>Выберите чат из списка слева для начала общения</p>
+        </div>
+    </div>
+</div>
+{% endblock content %}

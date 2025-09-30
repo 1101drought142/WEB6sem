@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Создать заявку - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/forms.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="request-form form-container">
+    <h1>Создание заявки</h1>
+    
+    <div class="info-box">
+        <p>📋 Заполните форму, чтобы создать заявку на консультацию с доктором.</p>
+        <p>Доктор выбранной специализации увидит вашу заявку и сможет её принять.</p>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <ul class="error-list">
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+        <button type="submit" class="btn-submit">Создать заявку</button>
+    </form>
+</div>
+{% endblock content %}

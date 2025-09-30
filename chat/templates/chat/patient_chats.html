@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Мои заявки - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/requests.css' %}" />
+<link rel="stylesheet" href="{% static 'css/pagination.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="requests-container">
+    <div class="requests-header">
+        <h1>📋 Мои заявки</h1>
+        <a href="{% url 'chat:request_create' %}" class="btn-create">➕ Создать заявку</a>
+    </div>
+    
+    {% if requests %}
+        <div class="requests-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата создания</th>
+                        <th>Название</th>
+                        <th>Специализация</th>
+                        <th>Доктор</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in requests %}
+                    <tr>
+                        <td>{{ request.created_at|date:"d.m.Y H:i" }}</td>
+                        <td><strong>{{ request.title }}</strong></td>
+                        <td>{{ request.get_specialization_display }}</td>
+                        <td>
+                            {% if request.doctor %}
+                                <span style="color: #4CAF50; font-weight: 600;">
+                                    {{ request.doctor.get_full_name }}
+                                </span>
+                            {% else %}
+                                <span style="color: #999;">Не назначен</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request.status == 'waiting' %}
+                                <span class="status-badge status-waiting">
+                                    ⏳ {{ request.get_status_display }}
+                                </span>
+                            {% elif request.status == 'assigned' %}
+                                <span class="status-badge status-assigned">
+                                    ✅ {{ request.get_status_display }}
+                                </span>
+                            {% elif request.status == 'waiting_doctor' %}
+                                <span class="status-badge status-waiting_doctor">
+                                    💬 {{ request.get_status_display }}
+                                </span>
+                            {% elif request.status == 'doctor_replied' %}
+                                <span class="status-badge status-doctor_replied">
+                                    📬 {{ request.get_status_display }}
+                                </span>
+                            {% else %}
+                                <span class="status-badge">
+                                    {{ request.get_status_display }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request.chat %}
+                                <a href="{% url 'chat:chat_detail' request.chat.pk %}" class="btn-chat">💬 Открыть чат</a>
+                            {% else %}
+                                <span style="color: #999; font-size: 13px;">Ожидание доктора...</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% include 'pagination.html' %}
+        
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h3>У вас пока нет заявок</h3>
+            <p>Создайте первую заявку, чтобы начать консультацию с доктором</p>
+            <br>
+            <a href="{% url 'chat:request_create' %}" class="btn-create">Создать заявку</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock content %}

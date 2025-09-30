@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Страница не найдена</title>
+{% endblock seo %}
+
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'home.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+
+<section class="not_found">
+    <h1>Страница не найдена</h1>
+</section>
+
+{% endblock content %}
+
+{% block scripts %}
+<script src="{% static 'home.js' %}" defer="defer"> </script>
+{% endblock scripts %}
+
+</html>

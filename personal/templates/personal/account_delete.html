@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Удаление аккаунта - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/forms.css' %}" />
+<link rel="stylesheet" href="{% static 'css/profile.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="delete-container">
+    <h1>⚠️ Удаление аккаунта</h1>
+    
+    <div class="warning-message">
+        <p><strong>Внимание!</strong></p>
+        <p>Вы собираетесь удалить свой аккаунт.</p>
+        <p>Это действие необратимо. Будут удалены:</p>
+        <ul>
+            <li>Ваш профиль</li>
+            <li>Все ваши заявки</li>
+            <li>История сообщений</li>
+        </ul>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <p style="text-align: center; margin-bottom: 20px;">
+            Вы уверены, что хотите удалить аккаунт <strong>{{ user.username }}</strong>?
+        </p>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-danger">Да, удалить аккаунт</button>
+            <a href="{% url 'personal:profile' %}" class="btn btn-cancel">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock content %}
