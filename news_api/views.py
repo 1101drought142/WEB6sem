@@ -1,11 +1,18 @@
 import json
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotAllowed, HttpResponseNotFound
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.shortcuts import get_object_or_404
 from main.models import News
 
-@csrf_exempt
-def api_news_list_create(request):
-    if request.method == 'GET':
+
+@method_decorator(csrf_exempt, name='dispatch')
+class NewsListCreateView(View):
+    """API endpoint для получения списка новостей и создания новой новости"""
+    
+    def get(self, request):
+        """Обработка GET запроса - получение списка новостей"""
         name_filter = request.GET.get('name')
         ordering = request.GET.get('ordering')
 
@@ -27,7 +34,8 @@ def api_news_list_create(request):
         ]
         return JsonResponse(data, safe=False)
 
-    elif request.method == 'POST':
+    def post(self, request):
+        """Обработка POST запроса - создание новой новости"""
         try:
             body = json.loads(request.body)
             name = body.get('name')
@@ -46,17 +54,15 @@ def api_news_list_create(request):
             }, status=201)
         except json.JSONDecodeError:
             return HttpResponseBadRequest('Invalid JSON')
-    else:
-        return HttpResponseNotAllowed(['GET', 'POST'])
 
-@csrf_exempt
-def api_news_detail_update_delete(request, pk):
-    try:
-        news = News.objects.get(pk=pk)
-    except News.DoesNotExist:
-        return HttpResponseNotFound('News not found')
 
-    if request.method == 'GET':
+@method_decorator(csrf_exempt, name='dispatch')
+class NewsDetailUpdateDeleteView(View):
+    """API endpoint для получения, обновления и удаления конкретной новости"""
+    
+    def get(self, request, pk):
+        """Обработка GET запроса - получение детальной информации о новости"""
+        news = get_object_or_404(News, pk=pk)
         return JsonResponse({
             'id': news.id,
             'name': news.name,
@@ -64,7 +70,9 @@ def api_news_detail_update_delete(request, pk):
             'description': news.description
         })
 
-    elif request.method == 'PUT':
+    def put(self, request, pk):
+        """Обработка PUT запроса - обновление новости"""
+        news = get_object_or_404(News, pk=pk)
         try:
             body = json.loads(request.body)
             news.name = body.get('name', news.name)
@@ -80,9 +88,8 @@ def api_news_detail_update_delete(request, pk):
         except json.JSONDecodeError:
             return HttpResponseBadRequest('Invalid JSON')
 
-    elif request.method == 'DELETE':
+    def delete(self, request, pk):
+        """Обработка DELETE запроса - удаление новости"""
+        news = get_object_or_404(News, pk=pk)
         news.delete()
         return JsonResponse({'status': 'deleted'}, status=204)
-
-    else:
-        return HttpResponseNotAllowed(['GET', 'PUT', 'DELETE'])

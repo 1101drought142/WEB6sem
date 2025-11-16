@@ -15,12 +15,14 @@
                 <img src="{% static 'icon.png' %}" alt="logo">
             </div>
             <nav class="header_nav">
-                <div class="header_item">
-                    <a href="{% url 'homepage' %}">Главная</a>
-                </div>
-                <div class="header_item">
-                    <a href="{% url 'news' %}">Новости</a>
-                </div>
+                {# Основное меню из контекста #}
+                {% if menu %}
+                    {% for item in menu %}
+                        <div class="header_item">
+                            <a href="{% url item.url_name %}">{{ item.title }}</a>
+                        </div>
+                    {% endfor %}
+                {% endif %}
                 
                 {% if user.is_authenticated %}
                     {% if user.doctor %}
@@ -75,7 +77,136 @@
     
     {% block content %}
     {% endblock %}
+    
+    <!-- Попап "Позвоните мне" -->
+    <div id="callbackModal" class="callback-modal" style="display: none;">
+        <div class="callback-modal-content">
+            <span class="callback-modal-close">&times;</span>
+            <h2>Позвоните мне</h2>
+            <p>Оставьте свои контактные данные, и мы свяжемся с вами в ближайшее время</p>
+            <form id="callbackForm" method="post" action="{% url 'callback_api' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="id_name">Ваше имя</label>
+                    <input type="text" name="name" id="id_name" class="form-control" placeholder="Введите ваше имя" required>
+                    <span class="error-message" id="name_error"></span>
+                </div>
+                <div class="form-group">
+                    <label for="id_phone">Телефон</label>
+                    <input type="tel" name="phone" id="id_phone" class="form-control" placeholder="+7 (999) 123-45-67" required>
+                    <span class="error-message" id="phone_error"></span>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn-submit">Отправить</button>
+                </div>
+            </form>
+            <div id="callbackMessage" class="callback-message" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <!-- Кнопка для открытия попапа -->
+    <button id="callbackButton" class="callback-button" title="Позвоните мне">
+        📞
+    </button>
 </body>
 <link rel="stylesheet" href="{% static 'shared.js' %}" >
 {% block scripts %}{% endblock scripts %}
+
+<script>
+// Обработка попапа "Позвоните мне"
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('callbackModal');
+    const button = document.getElementById('callbackButton');
+    const closeBtn = document.querySelector('.callback-modal-close');
+    const form = document.getElementById('callbackForm');
+    const messageDiv = document.getElementById('callbackMessage');
+    
+    // Открытие попапа
+    button.addEventListener('click', function() {
+        modal.style.display = 'flex';
+    });
+    
+    // Закрытие попапа
+    closeBtn.addEventListener('click', function() {
+        modal.style.display = 'none';
+        form.reset();
+        messageDiv.style.display = 'none';
+        clearErrors();
+    });
+    
+    // Закрытие при клике вне попапа
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+            form.reset();
+            messageDiv.style.display = 'none';
+            clearErrors();
+        }
+    });
+    
+    // Очистка ошибок
+    function clearErrors() {
+        document.querySelectorAll('.error-message').forEach(el => {
+            el.textContent = '';
+            el.style.display = 'none';
+        });
+        document.querySelectorAll('.form-control').forEach(el => {
+            el.classList.remove('error');
+        });
+    }
+    
+    // Отправка формы
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        clearErrors();
+        messageDiv.style.display = 'none';
+        
+        const formData = new FormData(form);
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                messageDiv.textContent = data.message;
+                messageDiv.className = 'callback-message success';
+                messageDiv.style.display = 'block';
+                form.reset();
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                    messageDiv.style.display = 'none';
+                }, 2000);
+            } else {
+                // Отображение ошибок
+                if (data.errors) {
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        const errorEl = document.getElementById(field + '_error');
+                        const inputEl = document.getElementById('id_' + field);
+                        if (errorEl && inputEl) {
+                            errorEl.textContent = errors[0];
+                            errorEl.style.display = 'block';
+                            inputEl.classList.add('error');
+                        }
+                    }
+                }
+                if (data.message) {
+                    messageDiv.textContent = data.message;
+                    messageDiv.className = 'callback-message error';
+                    messageDiv.style.display = 'block';
+                }
+            }
+        })
+        .catch(error => {
+            messageDiv.textContent = 'Произошла ошибка. Попробуйте позже.';
+            messageDiv.className = 'callback-message error';
+            messageDiv.style.display = 'block';
+        });
+    });
+});
+</script>
 </html>

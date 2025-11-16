@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.views.generic import TemplateView, ListView, DetailView, FormView
+from django.views.generic import TemplateView, ListView, DetailView, FormView, CreateView
 from django.views import View
 from django.urls import reverse_lazy, reverse
 from django.http import Http404, JsonResponse
@@ -9,82 +9,32 @@ from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 
 from main.models import News, Tags, Category, Feedback
-from main.forms import FeedbackForm
+from main.forms import FeedbackForm, CallbackForm
+from shared.utils import DataMixin
 from django.shortcuts import get_object_or_404
 
 
-class HomePageView(TemplateView):
+class HomePageView(DataMixin, TemplateView):
     """Главная страница"""
     template_name = "main.html"
+    title_page = 'Главная страница'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['feedback_form'] = FeedbackForm()
-        return context
+        return self.get_mixin_context(context, feedback_form=FeedbackForm())
 
 
-class SendFormView(FormView):
-    """Обработка формы обратной связи с главной страницы"""
-    template_name = "main.html"
-    form_class = FeedbackForm
-    success_url = reverse_lazy('homepage')
-    
-    def form_valid(self, form):
-        # Получаем данные из формы
-        name = form.cleaned_data['name']
-        email = form.cleaned_data.get('email', 'Не указан')
-        subject = form.cleaned_data['subject']
-        message = form.cleaned_data['message']
-        
-        # Здесь можно обработать данные: отправить email, сохранить в файл, etc.
-        # Например, вывести в консоль:
-        print(f"""
-        === Новое сообщение обратной связи ===
-        Имя: {name}
-        Email: {email}
-        Тема: {subject}
-        Сообщение: {message}
-        =====================================
-        """)
-        
-        # Добавляем сообщение об успехе
-        messages.success(self.request, 'Спасибо за ваше обращение! Мы свяжемся с вами в ближайшее время.')
-        return super().form_valid(form)
-    
-    def form_invalid(self, form):
-        """
-        Обработка невалидной формы.
-        Добавляем детальные сообщения об ошибках и возвращаем форму с ошибками.
-        """
-        # Добавляем общее сообщение
-        messages.error(self.request, 'Пожалуйста, исправьте ошибки в форме.')
-        
-        # Добавляем конкретные ошибки для каждого поля
-        for field, errors in form.errors.items():
-            for error in errors:
-                if field == '__all__':
-                    # Общие ошибки формы (из метода clean())
-                    messages.error(self.request, f'Ошибка: {error}')
-                else:
-                    # Ошибки конкретных полей
-                    field_label = form.fields[field].label or field
-                    messages.error(self.request, f'{field_label}: {error}')
-        
-        # Возвращаем рендер шаблона с формой, содержащей ошибки
-        # Не используем redirect, чтобы сохранить объект формы с ошибками
-        context = self.get_context_data(form=form)
-        context['feedback_form'] = form  # Передаем форму с ошибками
-        return self.render_to_response(context)
 
 
-class NewsListView(ListView):
+class NewsListView(DataMixin, ListView):
     """Список новостей с пагинацией и фильтрацией"""
     model = News
     template_name = "news.html"
     context_object_name = 'news'
-    paginate_by = 6  # Пагинация - 6 новостей на страницу
+    title_page = 'Новости'
     
     def get_queryset(self):
         # Базовый queryset с оптимизацией
@@ -115,23 +65,28 @@ class NewsListView(ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['tags'] = Tags.objects.all()
-        context['categories'] = Category.objects.all()
-        context['filter_tags'] = self.request.GET.getlist('tags')
-        context['filter_category'] = self.request.GET.get('category')
+        filter_tags = self.request.GET.getlist('tags')
+        filter_category = self.request.GET.get('category')
         
         # Формируем query string для пагинации
         query_params = []
-        if context['filter_category']:
-            query_params.append(f"&category={context['filter_category']}")
-        for tag in context['filter_tags']:
+        if filter_category:
+            query_params.append(f"&category={filter_category}")
+        for tag in filter_tags:
             query_params.append(f"&tags={tag}")
-        context['query_string'] = ''.join(query_params)
+        query_string = ''.join(query_params)
         
-        return context
+        return self.get_mixin_context(
+            context,
+            tags=Tags.objects.all(),
+            categories=Category.objects.all(),
+            filter_tags=filter_tags,
+            filter_category=filter_category,
+            query_string=query_string
+        )
 
 
-class NewsDetailView(DetailView):
+class NewsDetailView(DataMixin, DetailView):
     """Детальная страница новости"""
     model = News
     template_name = "news-detail.html"
@@ -142,64 +97,119 @@ class NewsDetailView(DetailView):
     def get_queryset(self):
         # Показываем только опубликованные новости
         return News.published.all()
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return self.get_mixin_context(context, title=context['elem'])
 
 
-class NotFoundView(TemplateView):
+class NotFoundView(DataMixin, TemplateView):
     """Страница 404"""
     template_name = "404.html"
+    title_page = 'Страница не найдена'
 
 
-class FeedbackAPIView(View):
+class FeedbackAPIView(CreateView):
     """
     API endpoint для обработки формы обратной связи через AJAX.
     Принимает POST запросы и возвращает JSON с результатом валидации.
     Сохраняет валидные данные в базу данных.
     """
+    model = Feedback
+    form_class = FeedbackForm
     
-    def post(self, request, *args, **kwargs):
-        """Обработка POST запроса с данными формы"""
-        form = FeedbackForm(request.POST, request.FILES)
+    def form_valid(self, form):
+        """Обработка валидной формы"""
+        # Сохраняем в базу данных 
+        feedback = form.save()
         
-        if form.is_valid():
-            # Сохраняем в базу данных (ModelForm автоматически создает объект)
-            feedback = form.save()
-            
-            # Логирование для отладки
-            print(f"""
-            === Новое сообщение обратной связи (AJAX) ===
-            ID: {feedback.id}
-            Имя: {feedback.name}
-            Email: {feedback.email}
-            Тема: {feedback.subject}
-            Сообщение: {feedback.message}
-            Скриншот: {'Да' if feedback.screenshot else 'Нет'}
-            Дата: {feedback.created_at}
-            =============================================
-            """)
-            
-            # Возвращаем успешный ответ
-            return JsonResponse({
-                'success': True,
-                'message': 'Спасибо за ваше обращение! Мы свяжемся с вами в ближайшее время.',
-                'feedback_id': feedback.id
-            })
+        # Логирование для отладки
+        print(f"""
+        === Новое сообщение обратной связи (AJAX) ===
+        ID: {feedback.id}
+        Имя: {feedback.name}
+        Email: {feedback.email}
+        Тема: {feedback.subject}
+        Сообщение: {feedback.message}
+        Скриншот: {'Да' if feedback.screenshot else 'Нет'}
+        Дата: {feedback.created_at}
+        =============================================
+        """)
         
-        else:
-            # Формируем детальные ошибки для фронтенда
-            errors = {}
-            
-            # Ошибки для конкретных полей
-            for field, error_list in form.errors.items():
-                if field == '__all__':
-                    # Общие ошибки формы
-                    errors['general'] = [str(error) for error in error_list]
-                else:
-                    # Ошибки конкретных полей
-                    errors[field] = [str(error) for error in error_list]
-            
-            # Возвращаем ошибки валидации
-            return JsonResponse({
-                'success': False,
-                'errors': errors,
-                'message': 'Пожалуйста, исправьте ошибки в форме.'
-            }, status=400)
+        # Возвращаем успешный ответ
+        return JsonResponse({
+            'success': True,
+            'message': 'Спасибо за ваше обращение! Мы свяжемся с вами в ближайшее время.',
+            'feedback_id': feedback.id
+        })
+    
+    def form_invalid(self, form):
+        """Обработка невалидной формы"""
+        # Формируем детальные ошибки для фронтенда
+        errors = {}
+        
+        # Ошибки для конкретных полей
+        for field, error_list in form.errors.items():
+            if field == '__all__':
+                # Общие ошибки формы
+                errors['general'] = [str(error) for error in error_list]
+            else:
+                # Ошибки конкретных полей
+                errors[field] = [str(error) for error in error_list]
+        
+        # Возвращаем ошибки валидации
+        return JsonResponse({
+            'success': False,
+            'errors': errors,
+            'message': 'Пожалуйста, исправьте ошибки в форме.'
+        }, status=400)
+
+
+class CallbackAPIView(FormView):
+    """
+    API endpoint для обработки формы "Позвоните мне" через AJAX.
+    Принимает POST запросы и возвращает JSON с результатом валидации.
+    Не сохраняет данные в базу, только выводит в консоль.
+    """
+    form_class = CallbackForm
+    
+    def form_valid(self, form):
+        """Обработка валидной формы"""
+        name = form.cleaned_data['name']
+        phone = form.cleaned_data['phone']
+        
+        # Выводим данные в консоль вместо сохранения в БД
+        print(f"""
+        === Запрос на обратный звонок ===
+        Имя: {name}
+        Телефон: {phone}
+        Дата: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}
+        ==================================
+        """)
+        
+        # Возвращаем успешный ответ
+        return JsonResponse({
+            'success': True,
+            'message': 'Спасибо! Мы свяжемся с вами в ближайшее время.'
+        })
+    
+    def form_invalid(self, form):
+        """Обработка невалидной формы"""
+        # Формируем детальные ошибки для фронтенда
+        errors = {}
+        
+        # Ошибки для конкретных полей
+        for field, error_list in form.errors.items():
+            if field == '__all__':
+                # Общие ошибки формы
+                errors['general'] = [str(error) for error in error_list]
+            else:
+                # Ошибки конкретных полей
+                errors[field] = [str(error) for error in error_list]
+        
+        # Возвращаем ошибки валидации
+        return JsonResponse({
+            'success': False,
+            'errors': errors,
+            'message': 'Пожалуйста, исправьте ошибки в форме.'
+        }, status=400)

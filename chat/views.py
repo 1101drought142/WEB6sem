@@ -8,6 +8,7 @@ from django.http import JsonResponse
 
 from chat.models import Request, Chat, Message
 from chat.forms import RequestCreateForm, MessageCreateForm
+from shared.utils import DataMixin
 from personal.models import Doctor
 
 
@@ -22,12 +23,13 @@ class DoctorRequiredMixin(UserPassesTestMixin):
         return redirect('homepage')
 
 
-class RequestCreateView(LoginRequiredMixin, CreateView):
+class RequestCreateView(DataMixin, LoginRequiredMixin, CreateView):
     """Создание заявки пациентом"""
     model = Request
     form_class = RequestCreateForm
     template_name = 'chat/request_create.html'
     success_url = reverse_lazy('chat:patient_chats')
+    title_page = 'Создание заявки'
     
     def form_valid(self, form):
         # Устанавливаем пациента
@@ -35,12 +37,13 @@ class RequestCreateView(LoginRequiredMixin, CreateView):
         messages.success(self.request, 'Заявка успешно создана!')
         return super().form_valid(form)
 
-class DoctorRequestsListView(LoginRequiredMixin, DoctorRequiredMixin, ListView):
+class DoctorRequestsListView(DataMixin, LoginRequiredMixin, DoctorRequiredMixin, ListView):
     """Список доступных заявок для доктора"""
     model = Request
     template_name = 'chat/doctor_requests.html'
     context_object_name = 'requests'
     paginate_by = 20
+    title_page = 'Заявки'
     
     def get_queryset(self):
         doctor = self.request.user.doctor
@@ -60,8 +63,8 @@ class DoctorRequestsListView(LoginRequiredMixin, DoctorRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['filter_type'] = self.request.GET.get('filter', 'available')
-        return context
+        filter_type = self.request.GET.get('filter', 'available')
+        return self.get_mixin_context(context, filter_type=filter_type)
 
 
 class RequestAcceptView(LoginRequiredMixin, DoctorRequiredMixin, View):
@@ -88,7 +91,7 @@ class RequestAcceptView(LoginRequiredMixin, DoctorRequiredMixin, View):
         return redirect('chat:chat_detail', pk=request_obj.chat.pk)
 
 
-class ChatDetailView(LoginRequiredMixin, DetailView):
+class ChatDetailView(DataMixin, LoginRequiredMixin, DetailView):
     """Детальная страница чата"""
     model = Chat
     template_name = 'chat/chat_detail.html'
@@ -106,15 +109,18 @@ class ChatDetailView(LoginRequiredMixin, DetailView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['messages'] = self.object.messages.select_related('sender').order_by('created_at')
-        context['form'] = MessageCreateForm()
         
         # Отмечаем сообщения как прочитанные
         unread_messages = self.object.messages.filter(is_read=False).exclude(sender=self.request.user)
         for message in unread_messages:
             message.mark_as_read()
         
-        return context
+        return self.get_mixin_context(
+            context,
+            title=f'Чат - {self.object.request.title}',
+            messages=self.object.messages.select_related('sender').order_by('created_at'),
+            form=MessageCreateForm()
+        )
 
 
 class MessageSendView(LoginRequiredMixin, View):
@@ -155,12 +161,13 @@ class MessageSendView(LoginRequiredMixin, View):
         return redirect('chat:chat_detail', pk=chat_pk)
 
 
-class PatientChatsListView(LoginRequiredMixin, ListView):
+class PatientChatsListView(DataMixin, LoginRequiredMixin, ListView):
     """Список всех заявок пациента с таблицей"""
     model = Request
     template_name = 'chat/patient_chats.html'
     context_object_name = 'requests'
     paginate_by = 10
+    title_page = 'Мои заявки'
     
     def get_queryset(self):
         # Показываем ВСЕ заявки пациента (включая ожидающие доктора)
@@ -169,11 +176,12 @@ class PatientChatsListView(LoginRequiredMixin, ListView):
         ).select_related('doctor__user', 'chat').order_by('-created_at')
 
 
-class DoctorChatsListView(LoginRequiredMixin, DoctorRequiredMixin, ListView):
+class DoctorChatsListView(DataMixin, LoginRequiredMixin, DoctorRequiredMixin, ListView):
     """Список чатов доктора"""
     model = Chat
     template_name = 'chat/doctor_chats.html'
     context_object_name = 'chats'
+    title_page = 'Мои чаты'
     
     def get_queryset(self):
         doctor = self.request.user.doctor

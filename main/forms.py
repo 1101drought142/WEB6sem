@@ -131,3 +131,55 @@ class FeedbackForm(forms.ModelForm):
             )
         
         return cleaned_data
+
+
+class CallbackForm(forms.Form):
+    """
+    Форма "Позвоните мне" - не связана с моделью.
+    Содержит только имя и телефон.
+    """
+    name = forms.CharField(
+        max_length=100,
+        label='Ваше имя',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Введите ваше имя',
+            'required': True
+        }),
+        validators=[
+            MinLengthValidator(2, message='Имя должно содержать минимум 2 символа'),
+            RegexValidator(
+                regex=r'^[а-яА-ЯёЁa-zA-Z\s-]+$',
+                message='Имя может содержать только буквы, пробелы и дефис'
+            ),
+            validate_has_letters
+        ]
+    )
+    
+    phone = forms.CharField(
+        max_length=20,
+        label='Телефон',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '+7 (999) 123-45-67',
+            'required': True,
+            'type': 'tel'
+        }),
+        validators=[
+            MinLengthValidator(10, message='Телефон должен содержать минимум 10 символов'),
+            RegexValidator(
+                regex=r'^[\d\s\-\+\(\)]+$',
+                message='Телефон может содержать только цифры, пробелы, дефисы, скобки и знак +'
+            )
+        ]
+    )
+    
+    def clean_phone(self):
+        """Очистка и валидация номера телефона"""
+        phone = self.cleaned_data.get('phone')
+        if phone:
+            # Удаляем все нецифровые символы для проверки
+            digits_only = ''.join(filter(str.isdigit, phone))
+            if len(digits_only) < 10:
+                raise forms.ValidationError('Телефон должен содержать минимум 10 цифр')
+        return phone

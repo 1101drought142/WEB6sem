@@ -25,7 +25,7 @@
         </ul>
     </div>
     
-    <form method="post">
+    <form id="deleteForm" method="post" action="{% url 'personal:account_delete' %}">
         {% csrf_token %}
         <p style="text-align: center; margin-bottom: 20px;">
             Вы уверены, что хотите удалить аккаунт <strong>{{ user.username }}</strong>?
@@ -36,5 +36,46 @@
             <a href="{% url 'personal:profile' %}" class="btn btn-cancel">Отмена</a>
         </div>
     </form>
+
+<script>
+document.getElementById('deleteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    const csrfToken = formData.get('csrfmiddlewaretoken');
+    
+    fetch(form.action, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({})
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+        } else if (response.ok) {
+            return response.json().then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect || '{% url "homepage" %}';
+                } else {
+                    alert('Ошибка при удалении аккаунта');
+                }
+            });
+        } else {
+            // Если редирект произошел, просто переходим на главную
+            window.location.href = '{% url "homepage" %}';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // В случае ошибки все равно пытаемся перейти на главную
+        window.location.href = '{% url "homepage" %}';
+    });
+});
+</script>
 </div>
 {% endblock content %}
