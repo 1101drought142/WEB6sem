@@ -136,7 +136,17 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-LOGOUT_REDIRECT_URL = '/'
+
+# Настройки аутентификации
+LOGIN_URL = 'personal:login'
+LOGIN_REDIRECT_URL = 'photo_list'
+LOGOUT_REDIRECT_URL = 'personal:login'
+
+# Бэкенды аутентификации
+AUTHENTICATION_BACKENDS = [
+    #'django.contrib.auth.backends.ModelBackend',
+    'personal.authentication.EmailAuthBackend',
+]
 
 
 LOGGING = {
@@ -156,3 +166,11 @@ LOGGING = {
         },
     },
 }
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.yandex.ru"
+EMAIL_PORT = 465
+EMAIL_HOST_USER = "konstantin.bagatelia@yandex.ru"  
+EMAIL_HOST_PASSWORD = os.getenv('SMPT_PASSWORD')
+EMAIL_USE_SSL = True
+DEFAULT_FROM_EMAIL = "konstantin.bagatelia@yandex.ru"

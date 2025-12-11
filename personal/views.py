@@ -1,13 +1,21 @@
-from django.contrib.auth.views import LoginView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import (
+    LoginView, LogoutView, PasswordResetView, PasswordResetDoneView,
+    PasswordResetConfirmView, PasswordResetCompleteView, PasswordChangeView,
+    PasswordChangeDoneView
+)
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.contrib.auth import login
 from django.views.generic import CreateView, UpdateView, DetailView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from personal.models import UserProfile
-from personal.forms import UserRegistrationForm, UserLoginForm, UserProfileForm, UserDeleteForm
+from personal.forms import (
+    UserRegistrationForm, UserLoginForm, UserProfileForm, UserDeleteForm,
+    CustomPasswordResetForm, CustomSetPasswordForm, CustomPasswordChangeForm
+)
 from shared.utils import DataMixin
 
 
@@ -40,6 +48,18 @@ class UserLoginView(DataMixin, LoginView):
     title_page = 'Вход'
     
     def get_success_url(self):
+        # Проверяем параметр next из GET или POST запроса
+        next_url = self.request.GET.get('next') or self.request.POST.get('next')
+        
+        # Проверяем безопасность URL (защита от открытых редиректов)
+        if next_url and url_has_allowed_host_and_scheme(
+            url=next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure()
+        ):
+            return next_url
+        
+        # Если параметра next нет или он небезопасен, используем стандартную логику
         # Проверяем, является ли пользователь доктором
         if hasattr(self.request.user, 'doctor'):
             return reverse_lazy('chat:doctor_requests')
@@ -50,6 +70,18 @@ class UserLoginView(DataMixin, LoginView):
         return super().form_valid(form)
 
 
+class UserLogoutView(LogoutView):
+    """Выход пользователя из системы"""
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Сохраняем имя пользователя перед выходом для сообщения
+        username = request.user.username if request.user.is_authenticated else None
+        response = super().dispatch(request, *args, **kwargs)
+        # Добавляем сообщение об успешном выходе
+        if username:
+            messages.success(request, f'Вы успешно вышли из системы. До свидания, {username}!')
+        return response
+
 
 class UserProfileView(DataMixin, LoginRequiredMixin, DetailView):
     """Просмотр профиля пользователя"""
@@ -59,23 +91,22 @@ class UserProfileView(DataMixin, LoginRequiredMixin, DetailView):
     title_page = 'Профиль'
     
     def get_object(self, queryset=None):
-        # Получаем или создаём профиль для текущего пользователя
-        profile, created = UserProfile.objects.get_or_create(user=self.request.user)
-        return profile
+        # Получаем профиль для текущего пользователя
+        return UserProfile.objects.get(user=self.request.user)
 
 
-class UserProfileUpdateView(DataMixin, LoginRequiredMixin, UpdateView):
+class UserProfileUpdateView(DataMixin, PermissionRequiredMixin, LoginRequiredMixin, UpdateView):
     """Редактирование профиля пользователя"""
     model = UserProfile
     form_class = UserProfileForm
     template_name = 'personal/profile_edit.html'
     success_url = reverse_lazy('personal:profile')
     title_page = 'Редактирование профиля'
+    permission_required = 'personal.change_userprofile'
     
     def get_object(self, queryset=None):
-        # Получаем или создаём профиль для текущего пользователя
-        profile, created = UserProfile.objects.get_or_create(user=self.request.user)
-        return profile
+        # Получаем профиль для текущего пользователя
+        return UserProfile.objects.get(user=self.request.user)
     
     def form_valid(self, form):
         messages.success(self.request, 'Профиль успешно обновлён!')
@@ -103,3 +134,61 @@ class UserDeleteView(DataMixin, LoginRequiredMixin, DeleteView):
             return JsonResponse({'success': True, 'redirect': str(self.success_url)})
         
         return redirect(self.success_url)
+
+
+class UserPasswordResetView(DataMixin, PasswordResetView):
+    """Представление для запроса восстановления пароля"""
+    form_class = CustomPasswordResetForm
+    template_name = 'personal/password_reset_form.html'
+    email_template_name = 'personal/password_reset_email.html'
+    success_url = reverse_lazy('personal:password_reset_done')
+    title_page = 'Восстановление пароля'
+    
+    def form_valid(self, form):
+        messages.info(
+            self.request,
+            'Инструкции по восстановлению пароля отправлены на указанный email адрес.'
+        )
+        return super().form_valid(form)
+
+
+class UserPasswordResetDoneView(DataMixin, PasswordResetDoneView):
+    """Страница подтверждения отправки письма для восстановления пароля"""
+    template_name = 'personal/password_reset_done.html'
+    title_page = 'Письмо отправлено'
+
+
+class UserPasswordResetConfirmView(DataMixin, PasswordResetConfirmView):
+    """Представление для изменения пароля по ссылке из письма"""
+    form_class = CustomSetPasswordForm
+    template_name = 'personal/password_reset_confirm.html'
+    success_url = reverse_lazy('personal:password_reset_complete')
+    title_page = 'Новый пароль'
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Пароль успешно изменён!')
+        return super().form_valid(form)
+
+
+class UserPasswordResetCompleteView(DataMixin, PasswordResetCompleteView):
+    """Страница успешного изменения пароля"""
+    template_name = 'personal/password_reset_complete.html'
+    title_page = 'Пароль изменён'
+
+
+class UserPasswordChangeView(DataMixin, LoginRequiredMixin, PasswordChangeView):
+    """Представление для смены пароля авторизованным пользователем"""
+    form_class = CustomPasswordChangeForm
+    template_name = 'personal/password_change_form.html'
+    success_url = reverse_lazy('personal:password_change_done')
+    title_page = 'Смена пароля'
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Пароль успешно изменён!')
+        return super().form_valid(form)
+
+
+class UserPasswordChangeDoneView(DataMixin, LoginRequiredMixin, PasswordChangeDoneView):
+    """Страница успешной смены пароля"""
+    template_name = 'personal/password_change_done.html'
+    title_page = 'Пароль изменён'

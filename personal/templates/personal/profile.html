@@ -17,6 +17,12 @@
         <p>Добро пожаловать, {{ user.username }}!</p>
     </div>
     
+    {% if profile.photo %}
+    <div class="profile-photo-container">
+        <img src="{{ profile.photo.url }}" alt="Фото профиля" class="profile-photo">
+    </div>
+    {% endif %}
+    
     <div class="profile-info">
         <div class="info-item">
             <label>Логин:</label>
@@ -50,7 +56,11 @@
     </div>
     
     <div class="profile-actions">
+        {% if perms.personal.change_userprofile %}
         <a href="{% url 'personal:profile_edit' %}" class="btn btn-primary">Редактировать профиль</a>
+        {% endif %}
+
+        <a href="{% url 'personal:password_change' %}" class="btn btn-primary">Изменить пароль</a>
         <a href="{% url 'personal:account_delete' %}" class="btn btn-danger">Удалить аккаунт</a>
     </div>
 </div>

@@ -49,4 +49,90 @@
         <p>Уже есть аккаунт? <a href="{% url 'personal:login' %}">Войти</a></p>
     </div>
 </div>
+
+<script>
+    // Получаем элементы полей формы
+    const usernameInput = document.getElementById('id_username');
+    const emailInput = document.getElementById('id_email');
+    
+    // Функция для отображения ошибки поля
+    function showFieldError(inputElement, errorMessage) {
+        // Убираем предыдущую ошибку, если есть
+        hideFieldError(inputElement);
+        
+        // Добавляем класс ошибки к полю
+        inputElement.classList.add('error');
+        inputElement.style.borderColor = '#d32f2f';
+        
+        // Создаем элемент для отображения ошибки
+        const errorElement = document.createElement('ul');
+        errorElement.className = 'error-list';
+        errorElement.style.display = 'block';
+        
+        const errorItem = document.createElement('li');
+        errorItem.textContent = errorMessage;
+        errorElement.appendChild(errorItem);
+        
+        // Вставляем ошибку после поля ввода
+        inputElement.parentNode.insertBefore(errorElement, inputElement.nextSibling);
+    }
+    
+    // Функция для скрытия ошибки поля
+    function hideFieldError(inputElement) {
+        // Убираем класс ошибки
+        inputElement.classList.remove('error');
+        inputElement.style.borderColor = '';
+        
+        // Удаляем элемент ошибки, если он существует
+        const errorElement = inputElement.parentNode.querySelector('.error-list');
+        if (errorElement) {
+            errorElement.remove();
+        }
+    }
+    
+    // Функция валидации формата username
+    function validateUsernameFormat(username) {
+        const usernameRegex = /^[\w.@+-]+$/;
+        const isValid = usernameRegex.test(username) && username.length <= 150;
+        
+        if (username.length > 0 && !isValid) {
+            showFieldError(usernameInput, 'Недопустимые символы в имени пользователя');
+        } else {
+            hideFieldError(usernameInput);
+        }
+    }
+    
+    // Функция валидации формата email
+    function validateEmailFormat(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const isValid = emailRegex.test(email);
+        
+        if (email.length > 0 && !isValid) {
+            showFieldError(emailInput, 'Введите корректный email адрес');
+        } else {
+            hideFieldError(emailInput);
+        }
+    }
+    
+    // Добавляем обработчики событий для валидации в реальном времени
+    if (usernameInput) {
+        usernameInput.addEventListener('input', function() {
+            validateUsernameFormat(this.value);
+        });
+        
+        usernameInput.addEventListener('blur', function() {
+            validateUsernameFormat(this.value);
+        });
+    }
+    
+    if (emailInput) {
+        emailInput.addEventListener('input', function() {
+            validateEmailFormat(this.value);
+        });
+        
+        emailInput.addEventListener('blur', function() {
+            validateEmailFormat(this.value);
+        });
+    }
+</script>
 {% endblock content %}

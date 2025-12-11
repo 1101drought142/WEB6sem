@@ -193,7 +193,7 @@ body {
     border-left: 4px solid #dc3545;
 }
 
-.alert-error::before,
+
 .alert-danger::before {
     content: "❌";
 }

@@ -15,7 +15,7 @@ class UserProfileAdmin(admin.ModelAdmin):
             'fields': ('user',)
         }),
         ('Личные данные', {
-            'fields': ('first_name', 'last_name', 'middle_name', 'date_of_birth')
+            'fields': ('first_name', 'last_name', 'middle_name', 'photo', 'date_of_birth')
         }),
         ('Медицинские данные', {
             'fields': ('height', 'weight')
@@ -41,7 +41,7 @@ class DoctorAdmin(admin.ModelAdmin):
             'fields': ('user',)
         }),
         ('Личные данные', {
-            'fields': ('first_name', 'last_name', 'middle_name')
+            'fields': ('first_name', 'last_name', 'middle_name', 'photo')
         }),
         ('Профессиональные данные', {
             'fields': ('specialization', 'description')
