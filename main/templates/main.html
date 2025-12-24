@@ -77,7 +77,10 @@
     <!-- Призыв к действию -->
     <div class="cta-section">
         {% if user.is_authenticated %}
-            {% if user.doctor %}
+            {% load personal_tags %}
+            {% if user|is_admin_only %}
+                <a href="{% url 'admin:index' %}" class="cta-button">Админ-панель</a>
+            {% elif user.doctor %}
                 <a href="{% url 'chat:doctor_requests' %}" class="cta-button">Посмотреть заявки</a>
             {% else %}
                 <a href="{% url 'chat:request_create' %}" class="cta-button">Создать заявку</a>

@@ -11,7 +11,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 
-from main.models import News, Tags, Category, Feedback
+from main.models import News, Tags, Category, Feedback, Poll
 from main.forms import FeedbackForm, CallbackForm
 from shared.utils import DataMixin
 from django.shortcuts import get_object_or_404
@@ -95,11 +95,16 @@ class NewsDetailView(DataMixin, DetailView):
     slug_url_kwarg = 'news_slug'
     
     def get_queryset(self):
-        # Показываем только опубликованные новости
-        return News.published.all()
+        # Показываем только опубликованные новости с оптимизацией запросов
+        return News.published.all().select_related('poll', 'category').prefetch_related('tags')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # Получаем текущий голос пользователя из сессии
+        news_slug = context['elem'].slug
+        session_key = f'poll_vote_{news_slug}'
+        current_vote = self.request.session.get(session_key, None)
+        context['current_vote'] = current_vote
         return self.get_mixin_context(context, title=context['elem'])
 
 
@@ -213,3 +218,84 @@ class CallbackAPIView(FormView):
             'errors': errors,
             'message': 'Пожалуйста, исправьте ошибки в форме.'
         }, status=400)
+
+
+class PollVoteView(View):
+    """
+    API endpoint для обработки голосования за новость (лайки/дизлайки).
+    Принимает POST запросы и возвращает JSON с обновленными значениями.
+    Поддерживает переключение голоса и отмену голосования.
+    """
+    def post(self, request, news_slug):
+        # Получаем новость
+        news = get_object_or_404(News.published.all(), slug=news_slug)
+        
+        # Получаем или создаем опрос
+        poll, created = Poll.objects.get_or_create(news=news, defaults={'likes': 0, 'dislikes': 0})
+        
+        # Получаем текущий голос пользователя из сессии
+        session_key = f'poll_vote_{news_slug}'
+        current_vote = request.session.get(session_key, None)
+        
+        # Получаем тип голоса из запроса
+        vote_type = request.POST.get('vote_type')
+        
+        if vote_type not in ['like', 'dislike']:
+            return JsonResponse({
+                'success': False,
+                'message': 'Неверный тип голоса. Используйте "like" или "dislike".',
+                'likes': poll.likes,
+                'dislikes': poll.dislikes,
+                'current_vote': current_vote
+            }, status=400)
+        
+        # Логика переключения голоса
+        if current_vote == vote_type:
+            # Отменяем голос (пользователь нажал на уже выбранную кнопку)
+            if vote_type == 'like':
+                poll.likes = max(0, poll.likes - 1)
+            else:  # dislike
+                poll.dislikes = max(0, poll.dislikes - 1)
+            poll.save()
+            # Удаляем голос из сессии
+            if session_key in request.session:
+                del request.session[session_key]
+            current_vote = None
+            message = 'Ваш голос отменен.'
+        elif current_vote is None:
+            # Новый голос
+            if vote_type == 'like':
+                poll.likes += 1
+            else:  # dislike
+                poll.dislikes += 1
+            poll.save()
+            request.session[session_key] = vote_type
+            current_vote = vote_type
+            message = 'Спасибо за ваш голос!'
+        else:
+            # Переключение с одного типа на другой
+            # Уменьшаем предыдущий голос
+            if current_vote == 'like':
+                poll.likes = max(0, poll.likes - 1)
+            else:  # current_vote == 'dislike'
+                poll.dislikes = max(0, poll.dislikes - 1)
+            
+            # Увеличиваем новый голос
+            if vote_type == 'like':
+                poll.likes += 1
+            else:  # dislike
+                poll.dislikes += 1
+            
+            poll.save()
+            request.session[session_key] = vote_type
+            current_vote = vote_type
+            message = 'Ваш голос изменен.'
+        
+        # Возвращаем успешный ответ
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'likes': poll.likes,
+            'dislikes': poll.dislikes,
+            'current_vote': current_vote
+        })

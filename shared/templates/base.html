@@ -25,13 +25,22 @@
                 {% endif %}
                 
                 {% if user.is_authenticated %}
-                    {% if user.doctor %}
+                    {% load personal_tags %}
+                    {% if user|is_admin_only %}
+                        {# Меню для администратора (без профиля/доктора) #}
+                        <div class="header_item">
+                            <a href="{% url 'admin:index' %}">Админ-панель</a>
+                        </div>
+                    {% elif user.doctor %}
                         {# Меню для доктора #}
                         <div class="header_item">
                             <a href="{% url 'chat:doctor_requests' %}">Заявки</a>
                         </div>
                         <div class="header_item">
                             <a href="{% url 'chat:doctor_chats' %}">Чаты</a>
+                        </div>
+                        <div class="header_item">
+                            <a href="{% url 'personal:profile' %}">Профиль</a>
                         </div>
                     {% else %}
                         {# Меню для пациента #}
@@ -41,11 +50,11 @@
                         <div class="header_item">
                             <a href="{% url 'chat:patient_chats' %}">Мои заявки</a>
                         </div>
+                        <div class="header_item">
+                            <a href="{% url 'personal:profile' %}">Профиль</a>
+                        </div>
                     {% endif %}
                     
-                    <div class="header_item">
-                        <a href="{% url 'personal:profile' %}">Профиль</a>
-                    </div>
                     <div class="header_item">
                         <form method="post" action="{% url 'personal:logout' %}">
                             {% csrf_token %}
@@ -66,7 +75,7 @@
     
     <!-- Уведомления -->
     {% if messages %}
-    <div class="notifications-container">
+    <div class="notifications-container" style="display: none;">
         {% for message in messages %}
         <div class="alert alert-{{ message.tags }}">
             {{ message }}
@@ -109,10 +118,19 @@
         📞
     </button>
 </body>
-<link rel="stylesheet" href="{% static 'shared.js' %}" >
+<!-- <link rel="stylesheet" href="{% static 'shared.js' %}" > -->
 {% block scripts %}{% endblock scripts %}
 
 <script>
+// Скрываем уведомления при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Скрываем все уведомления при загрузке страницы
+    const notificationsContainer = document.querySelector('.notifications-container');
+    if (notificationsContainer) {
+        notificationsContainer.style.display = 'none';
+    }
+});
+
 // Обработка попапа "Позвоните мне"
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('callbackModal');

@@ -5,7 +5,8 @@ from main.views import (
     NewsDetailView,
     NotFoundView,
     FeedbackAPIView,
-    CallbackAPIView
+    CallbackAPIView,
+    PollVoteView
 )
 from main.converters import OneDigitYearConverter
 
@@ -19,4 +20,5 @@ urlpatterns = [
     path('api/callback/', CallbackAPIView.as_view(), name='callback_api'),
     path('news/', NewsListView.as_view(), name='news'),
     path('news_elem/<slug:news_slug>/', NewsDetailView.as_view(), name='news_detail'),
+    path('news_elem/<slug:news_slug>/vote/', PollVoteView.as_view(), name='poll_vote'),
 ]

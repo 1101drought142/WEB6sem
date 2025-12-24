@@ -33,12 +33,17 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Channels
+    'channels',
     
     # Приложения проекта
     'shared',
@@ -80,6 +85,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'healthcare.wsgi.application'
+ASGI_APPLICATION = 'healthcare.asgi.application'
 
 
 # Database
@@ -174,3 +180,12 @@ EMAIL_HOST_USER = "konstantin.bagatelia@yandex.ru"
 EMAIL_HOST_PASSWORD = os.getenv('SMPT_PASSWORD')
 EMAIL_USE_SSL = True
 DEFAULT_FROM_EMAIL = "konstantin.bagatelia@yandex.ru"
+
+# Настройки Channels
+# Для локальной разработки используем InMemoryChannelLayer
+# Для production нужно использовать Redis: channels_redis.core.RedisChannelLayer
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}

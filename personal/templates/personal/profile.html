@@ -56,10 +56,7 @@
     </div>
     
     <div class="profile-actions">
-        {% if perms.personal.change_userprofile %}
         <a href="{% url 'personal:profile_edit' %}" class="btn btn-primary">Редактировать профиль</a>
-        {% endif %}
-
         <a href="{% url 'personal:password_change' %}" class="btn btn-primary">Изменить пароль</a>
         <a href="{% url 'personal:account_delete' %}" class="btn btn-danger">Удалить аккаунт</a>
     </div>

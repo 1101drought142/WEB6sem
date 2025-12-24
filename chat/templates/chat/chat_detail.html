@@ -35,7 +35,7 @@
     <div class="messages-container" id="messages-container">
         {% if messages %}
             {% for message in messages %}
-            <div class="message {% if message.sender == user %}own{% endif %}">
+            <div class="message {% if message.sender == user %}own{% endif %}" data-message-id="{{ message.id }}">
                 <div class="message-bubble">
                     {% if message.sender != user %}
                         <div class="message-sender">
@@ -72,6 +72,12 @@
                 <p>Пока здесь нет сообщений. Напишите первое сообщение!</p>
             </div>
         {% endif %}
+        <div id="typing-indicator" class="typing-indicator" style="display: none;">
+            <div class="typing-dots">
+                <span></span><span></span><span></span>
+            </div>
+            <span id="typing-user-name"></span> печатает...
+        </div>
     </div>
     
     <div class="message-form">
@@ -102,28 +108,275 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Автоматическая прокрутка вниз при загрузке
+    const chatId = {{ chat.pk }};
+    const currentUserId = {{ user.id }};
     const messagesContainer = document.getElementById('messages-container');
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    
-    // Автоматическое изменение размера textarea
+    const messageForm = document.getElementById('message-form');
     const messageInput = document.getElementById('message-input');
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const btnSend = document.querySelector('.btn-send');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const typingUserName = document.getElementById('typing-user-name');
     
-    // Отправка по Ctrl/Cmd + Enter
-    messageInput.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            document.getElementById('message-form').submit();
+    let chatSocket = null;
+    let typingTimeout = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    
+    // Определяем WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/chat/${chatId}/`;
+    
+    // Функция подключения к WebSocket
+    function connectWebSocket() {
+        chatSocket = new WebSocket(wsUrl);
+        
+        chatSocket.onopen = function(e) {
+            console.log('WebSocket подключен');
+            reconnectAttempts = 0;
+            updateConnectionStatus(true);
+        };
+        
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            handleWebSocketMessage(data);
+        };
+        
+        chatSocket.onerror = function(e) {
+            console.error('Ошибка WebSocket:', e);
+            updateConnectionStatus(false);
+        };
+        
+        chatSocket.onclose = function(e) {
+            console.log('WebSocket отключен');
+            updateConnectionStatus(false);
+            
+            // Попытка переподключения
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                const delay = Math.min(1000 * reconnectAttempts, 10000);
+                console.log(`Попытка переподключения ${reconnectAttempts}/${maxReconnectAttempts} через ${delay}ms`);
+                setTimeout(connectWebSocket, delay);
+            } else {
+                console.error('Превышено максимальное количество попыток переподключения');
+            }
+        };
+    }
+    
+    // Обработка сообщений от WebSocket
+    function handleWebSocketMessage(data) {
+        switch(data.type) {
+            case 'connection_established':
+                console.log(data.message);
+                break;
+                
+            case 'new_message':
+                addMessageToChat(data, false);
+                scrollToBottom();
+                break;
+                
+            case 'message_sent':
+                // Подтверждение отправки - можно обновить статус сообщения
+                console.log('Сообщение отправлено:', data.message_id);
+                scrollToBottom();
+                break;
+                
+            case 'typing':
+                showTypingIndicator(data.username, data.is_typing);
+                break;
+                
+            case 'error':
+                console.error('Ошибка:', data.message);
+                alert('Ошибка: ' + data.message);
+                break;
+        }
+    }
+    
+    // Добавление сообщения в чат
+    function addMessageToChat(data, isOwn) {
+        // Убираем пустое состояние если есть
+        const emptyChat = messagesContainer.querySelector('.empty-chat');
+        if (emptyChat) {
+            emptyChat.remove();
+        }
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isOwn ? 'own' : ''}`;
+        messageDiv.setAttribute('data-message-id', data.message_id);
+        
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble';
+        
+        // Отправитель (если не свое сообщение)
+        if (!isOwn) {
+            const senderDiv = document.createElement('div');
+            senderDiv.className = 'message-sender';
+            senderDiv.textContent = data.sender_is_doctor 
+                ? `Доктор ${data.sender_full_name}` 
+                : data.sender_username;
+            bubbleDiv.appendChild(senderDiv);
+        }
+        
+        // Текст сообщения
+        if (data.text) {
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.textContent = data.text;
+            bubbleDiv.appendChild(textDiv);
+        }
+        
+        // Файл
+        if (data.file_url) {
+            const fileDiv = document.createElement('div');
+            fileDiv.className = 'message-file';
+            const fileLink = document.createElement('a');
+            fileLink.href = data.file_url;
+            fileLink.target = '_blank';
+            fileLink.textContent = `📎 ${data.file_name || 'Файл'}`;
+            fileDiv.appendChild(fileLink);
+            bubbleDiv.appendChild(fileDiv);
+        }
+        
+        // Время
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        const date = new Date(data.created_at);
+        timeDiv.textContent = formatDate(date);
+        bubbleDiv.appendChild(timeDiv);
+        
+        messageDiv.appendChild(bubbleDiv);
+        messagesContainer.insertBefore(messageDiv, typingIndicator);
+    }
+    
+    // Форматирование даты
+    function formatDate(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}.${month}.${year} ${hours}:${minutes}`;
+    }
+    
+    // Показать/скрыть индикатор набора текста
+    function showTypingIndicator(username, isTyping) {
+        if (isTyping) {
+            typingUserName.textContent = username;
+            typingIndicator.style.display = 'block';
+            scrollToBottom();
+        } else {
+            typingIndicator.style.display = 'none';
+        }
+    }
+    
+    // Отправка сообщения через WebSocket
+    function sendMessage(text, fileUrl = null) {
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({
+                type: 'chat_message',
+                text: text,
+                file_url: fileUrl
+            }));
+            
+            // Очищаем поле ввода
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            filePreview.style.display = 'none';
+            fileInput.value = '';
+            
+            return true;
+        } else {
+            console.error('WebSocket не подключен');
+            return false;
+        }
+    }
+    
+    // Отправка индикатора набора текста
+    function sendTypingIndicator(isTyping) {
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({
+                type: 'typing',
+                is_typing: isTyping
+            }));
+        }
+    }
+    
+    // Обработка отправки формы
+    messageForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const text = messageInput.value.trim();
+        const file = fileInput.files[0];
+        
+        if (!text && !file) {
+            return;
+        }
+        
+        // Если есть файл, используем старый способ отправки через форму
+        if (file) {
+            messageForm.submit();
+            return;
+        }
+        
+        // Отправляем текст через WebSocket
+        if (sendMessage(text)) {
+            // Показываем сообщение сразу (оптимистичное обновление)
+            addMessageToChat({
+                message_id: 'temp-' + Date.now(),
+                sender_id: currentUserId,
+                sender_username: '{{ user.username }}',
+                sender_is_doctor: {% if user.doctor %}true{% else %}false{% endif %},
+                sender_full_name: '{% if user.doctor %}{{ user.doctor.get_full_name }}{% else %}{{ user.get_full_name|default:user.username }}{% endif %}',
+                text: text,
+                file_url: null,
+                file_name: null,
+                created_at: new Date().toISOString(),
+                is_read: false
+            }, true);
+            scrollToBottom();
+        } else {
+            // Fallback на обычную форму
+            messageForm.submit();
         }
     });
     
-    // Превью прикрепленного файла
-    const fileInput = document.getElementById('file-input');
-    const filePreview = document.getElementById('file-preview');
+    // Индикатор набора текста
+    messageInput.addEventListener('input', function() {
+        // Автоматическое изменение размера
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+        
+        // Отправляем индикатор набора текста
+        if (this.value.trim().length > 0) {
+            sendTypingIndicator(true);
+            
+            // Очищаем предыдущий таймаут
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+            }
+            
+            // Через 3 секунды отправляем false
+            typingTimeout = setTimeout(function() {
+                sendTypingIndicator(false);
+            }, 3000);
+        } else {
+            sendTypingIndicator(false);
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+            }
+        }
+    });
     
+    // Отправка по Enter (без Shift)
+    messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            messageForm.dispatchEvent(new Event('submit'));
+        }
+    });
+    
+    // Превью файла
     fileInput.addEventListener('change', function() {
         if (this.files.length > 0) {
             const fileName = this.files[0].name;
@@ -134,10 +387,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Автоматическое обновление чата (опционально, без WebSocket)
-    // setInterval(() => {
-    //     location.reload();
-    // }, 30000); // Обновление каждые 30 секунд
+    // Прокрутка вниз
+    function scrollToBottom() {
+        setTimeout(function() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
+    }
+    
+    // Обновление статуса подключения
+    function updateConnectionStatus(connected) {
+        // Можно добавить визуальный индикатор статуса подключения
+        if (connected) {
+            btnSend.disabled = false;
+            btnSend.textContent = 'Отправить';
+        } else {
+            btnSend.disabled = true;
+            btnSend.textContent = 'Подключение...';
+        }
+    }
+    
+    // Инициализация
+    scrollToBottom();
+    connectWebSocket();
+    
+    // Очистка при закрытии страницы
+    window.addEventListener('beforeunload', function() {
+        if (chatSocket) {
+            chatSocket.close();
+        }
+        if (typingTimeout) {
+            clearTimeout(typingTimeout);
+        }
+    });
 });
 </script>
 {% endblock content %}

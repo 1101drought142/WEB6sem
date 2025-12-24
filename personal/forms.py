@@ -5,7 +5,7 @@ from django.contrib.auth.forms import (
     SetPasswordForm, PasswordChangeForm
 )
 from django.contrib.auth.models import User
-from personal.models import UserProfile
+from personal.models import UserProfile, Doctor
 
 
 class UserRegistrationForm(UserCreationForm):
@@ -51,9 +51,14 @@ class UserRegistrationForm(UserCreationForm):
             return self.initial.get('email', '')
         
         email = self.cleaned_data.get('email')
-        if email and self.instance and self.instance.user:
+        if email:
             # Проверяем, не занят ли email другим пользователем
-            existing_user = User.objects.filter(email=email).exclude(pk=self.instance.user.pk).first()
+            # self.instance - это User объект (так как форма основана на User)
+            query = User.objects.filter(email=email)
+            if self.instance and self.instance.pk:
+                # Исключаем текущего пользователя при редактировании
+                query = query.exclude(pk=self.instance.pk)
+            existing_user = query.first()
             if existing_user:
                 raise ValidationError('Пользователь с таким email уже существует.')
         return email
@@ -218,6 +223,69 @@ class UserProfileForm(forms.ModelForm):
                     instance.date_of_birth = None
         else:
             instance.date_of_birth = None
+        
+        if commit:
+            instance.save()
+        return instance
+
+
+class DoctorProfileForm(forms.ModelForm):
+    """Форма редактирования профиля доктора"""
+    
+    # Поле email из модели User
+    email = forms.EmailField(
+        required=True,
+        label='Email',
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Email'
+        })
+    )
+    
+    class Meta:
+        model = Doctor
+        fields = ('first_name', 'last_name', 'middle_name', 'photo', 'specialization', 'description')
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Имя'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Фамилия'}),
+            'middle_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Отчество'}),
+            'photo': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'specialization': forms.Select(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Описание',
+                'rows': 4
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Устанавливаем начальное значение email из связанного пользователя
+        if self.instance and self.instance.user:
+            self.initial['email'] = self.instance.user.email
+    
+    def clean_email(self):
+        """Проверка уникальности email (исключая текущего пользователя)"""
+        email = self.cleaned_data.get('email')
+        if email and self.instance and self.instance.user:
+            # Проверяем, не занят ли email другим пользователем
+            existing_user = User.objects.filter(email=email).exclude(pk=self.instance.user.pk).first()
+            if existing_user:
+                raise ValidationError('Пользователь с таким email уже существует.')
+        return email
+    
+    def save(self, commit=True):
+        """Сохраняет форму и обновляет email пользователя"""
+        instance = super().save(commit=False)
+        
+        # Обновляем email в связанной модели User
+        if 'email' in self.cleaned_data and instance.user:
+            instance.user.email = self.cleaned_data['email']
+            if commit:
+                instance.user.save()
         
         if commit:
             instance.save()

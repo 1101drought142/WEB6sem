@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Профиль доктора - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}" />
+<link rel="stylesheet" href="{% static 'css/forms.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <h1>Профиль доктора</h1>
+        <p>Добро пожаловать, {{ user.username }}!</p>
+    </div>
+    
+    {% if doctor.photo %}
+    <div class="profile-photo-container">
+        <img src="{{ doctor.photo.url }}" alt="Фото профиля" class="profile-photo">
+    </div>
+    {% endif %}
+    
+    <div class="profile-info">
+        <div class="info-item">
+            <label>Логин:</label>
+            <span>{{ user.username }}</span>
+        </div>
+        
+        <div class="info-item">
+            <label>Email:</label>
+            <span>{{ user.email|default:"<span class='empty-value'>Не указан</span>"|safe }}</span>
+        </div>
+        
+        <div class="info-item">
+            <label>ФИО:</label>
+            <span>{{ doctor.get_full_name|default:"<span class='empty-value'>Не указано</span>"|safe }}</span>
+        </div>
+        
+        <div class="info-item">
+            <label>Специализация:</label>
+            <span>{{ doctor.get_specialization_display|default:"<span class='empty-value'>Не указана</span>"|safe }}</span>
+        </div>
+        
+        {% if doctor.description %}
+        <div class="info-item">
+            <label>Описание:</label>
+            <span>{{ doctor.description|linebreaks }}</span>
+        </div>
+        {% endif %}
+        
+        <div class="info-item">
+            <label>Статус:</label>
+            <span>{% if doctor.is_active %}<span style="color: green;">Активен</span>{% else %}<span style="color: red;">Неактивен</span>{% endif %}</span>
+        </div>
+    </div>
+    
+    <div class="profile-actions">
+        <a href="{% url 'personal:doctor_profile_edit' %}" class="btn btn-primary">Редактировать профиль</a>
+        <a href="{% url 'personal:password_change' %}" class="btn btn-primary">Изменить пароль</a>
+        <a href="{% url 'personal:doctor_account_delete' %}" class="btn btn-danger">Удалить аккаунт</a>
+    </div>
+</div>
+{% endblock content %}

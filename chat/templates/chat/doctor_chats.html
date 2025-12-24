@@ -19,17 +19,19 @@
         <div class="chat-list">
             {% if chats %}
                 {% for chat in chats %}
-                <a href="{% url 'chat:chat_detail' chat.pk %}" class="chat-item">
+                <a href="{% url 'chat:chat_detail' chat.pk %}" class="chat-item" data-chat-id="{{ chat.pk }}">
                     <div class="chat-item-header">
                         <div class="chat-title">{{ chat.request.title|truncatewords:5 }}</div>
                         {% if chat.unread_count > 0 %}
-                            <span class="unread-badge">{{ chat.unread_count }}</span>
+                            <span class="unread-badge" id="badge-{{ chat.pk }}">{{ chat.unread_count }}</span>
+                        {% else %}
+                            <span class="unread-badge" id="badge-{{ chat.pk }}" style="display: none;">0</span>
                         {% endif %}
                     </div>
                     <div class="chat-patient">
                         {{ chat.request.patient.username }}
                     </div>
-                    <div class="chat-time">
+                    <div class="chat-time" id="time-{{ chat.pk }}">
                         {{ chat.updated_at|date:"d.m.Y H:i" }}
                     </div>
                 </a>
@@ -51,4 +53,148 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/chats/list/`;
+    let chatSocket = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    
+    // Функция подключения к WebSocket
+    function connectWebSocket() {
+        chatSocket = new WebSocket(wsUrl);
+        
+        chatSocket.onopen = function(e) {
+            console.log('WebSocket подключен для списка чатов');
+            reconnectAttempts = 0;
+        };
+        
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            handleWebSocketMessage(data);
+        };
+        
+        chatSocket.onerror = function(e) {
+            console.error('Ошибка WebSocket:', e);
+        };
+        
+        chatSocket.onclose = function(e) {
+            console.log('WebSocket отключен');
+            
+            // Попытка переподключения
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                const delay = Math.min(1000 * reconnectAttempts, 10000);
+                console.log(`Попытка переподключения ${reconnectAttempts}/${maxReconnectAttempts} через ${delay}ms`);
+                setTimeout(connectWebSocket, delay);
+            }
+        };
+    }
+    
+    // Обработка сообщений от WebSocket
+    function handleWebSocketMessage(data) {
+        switch(data.type) {
+            case 'connection_established':
+                console.log(data.message);
+                break;
+                
+            case 'new_chat_message':
+                updateChatItem(data);
+                break;
+                
+            case 'chat_updated':
+                updateChatTime(data);
+                break;
+                
+            case 'error':
+                console.error('Ошибка:', data.message);
+                break;
+        }
+    }
+    
+    // Обновление элемента чата при новом сообщении
+    function updateChatItem(data) {
+        const chatItem = document.querySelector(`[data-chat-id="${data.chat_id}"]`);
+        if (!chatItem) {
+            // Если чата нет в списке, можно обновить страницу или добавить его
+            console.log('Чат не найден в списке, требуется обновление страницы');
+            return;
+        }
+        
+        // Обновляем счетчик непрочитанных
+        const badge = document.getElementById(`badge-${data.chat_id}`);
+        if (badge) {
+            const unreadCount = data.unread_count || 0;
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        // Обновляем время
+        const timeElement = document.getElementById(`time-${data.chat_id}`);
+        if (timeElement) {
+            const date = data.updated_at ? new Date(data.updated_at) : (data.created_at ? new Date(data.created_at) : new Date());
+            timeElement.textContent = formatDate(date);
+        }
+        
+        // Выделяем чат визуально (новое сообщение)
+        chatItem.style.backgroundColor = '#e3f2fd';
+        chatItem.style.transition = 'background-color 0.3s';
+        setTimeout(() => {
+            chatItem.style.backgroundColor = '';
+        }, 2000);
+        
+        // Перемещаем чат в начало списка
+        const chatList = document.querySelector('.chat-list');
+        if (chatList && chatItem.parentNode === chatList) {
+            chatList.insertBefore(chatItem, chatList.firstChild);
+        }
+    }
+    
+    // Обновление времени чата
+    function updateChatTime(data) {
+        const timeElement = document.getElementById(`time-${data.chat_id}`);
+        if (timeElement && data.updated_at) {
+            const date = new Date(data.updated_at);
+            timeElement.textContent = formatDate(date);
+        }
+        
+        const badge = document.getElementById(`badge-${data.chat_id}`);
+        if (badge) {
+            const unreadCount = data.unread_count || 0;
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+    
+    // Форматирование даты
+    function formatDate(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}.${month}.${year} ${hours}:${minutes}`;
+    }
+    
+    // Инициализация
+    connectWebSocket();
+    
+    // Очистка при закрытии страницы
+    window.addEventListener('beforeunload', function() {
+        if (chatSocket) {
+            chatSocket.close();
+        }
+    });
+});
+</script>
 {% endblock content %}

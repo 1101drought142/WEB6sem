@@ -13,17 +13,34 @@ from personal.models import Doctor
 
 
 class DoctorRequiredMixin(UserPassesTestMixin):
-    """Миксин для проверки, что пользователь является доктором"""
+    """Миксин для проверки, что пользователь является доктором (не администратор)"""
     
     def test_func(self):
-        return hasattr(self.request.user, 'doctor')
+        from personal.models import is_admin_only
+        user = self.request.user
+        # Доктор - это пользователь с doctor, но не администратор
+        return hasattr(user, 'doctor') and not is_admin_only(user)
     
     def handle_no_permission(self):
         messages.error(self.request, 'Доступ запрещён. Эта страница доступна только докторам.')
         return redirect('homepage')
 
 
-class RequestCreateView(DataMixin, LoginRequiredMixin, CreateView):
+class PatientRequiredMixin(UserPassesTestMixin):
+    """Миксин для проверки, что пользователь является пациентом (не доктор и не администратор)"""
+    
+    def test_func(self):
+        from personal.models import is_admin_only, is_patient
+        user = self.request.user
+        # Пациент - это пользователь с профилем, но не доктор и не администратор
+        return is_patient(user) and not hasattr(user, 'doctor') and not is_admin_only(user)
+    
+    def handle_no_permission(self):
+        messages.error(self.request, 'Доступ запрещён. Эта страница доступна только пациентам.')
+        return redirect('homepage')
+
+
+class RequestCreateView(DataMixin, LoginRequiredMixin, PatientRequiredMixin, CreateView):
     """Создание заявки пациентом"""
     model = Request
     form_class = RequestCreateForm
@@ -32,8 +49,20 @@ class RequestCreateView(DataMixin, LoginRequiredMixin, CreateView):
     title_page = 'Создание заявки'
     
     def form_valid(self, form):
+        from personal.models import is_admin_only
+        user = self.request.user
+        
+        # Администраторы не могут создавать заявки
+        if is_admin_only(user):
+            messages.error(self.request, 'Администраторы не могут создавать заявки.')
+            return redirect('admin:index')
+        
+        if hasattr(user, 'doctor'):
+            messages.error(self.request, 'Доктора не могут создавать заявки.')
+            return redirect('homepage')
+        
         # Устанавливаем пациента
-        form.instance.patient = self.request.user
+        form.instance.patient = user
         messages.success(self.request, 'Заявка успешно создана!')
         return super().form_valid(form)
 
@@ -97,9 +126,18 @@ class ChatDetailView(DataMixin, LoginRequiredMixin, DetailView):
     template_name = 'chat/chat_detail.html'
     context_object_name = 'chat'
     
+    def dispatch(self, request, *args, **kwargs):
+        from personal.models import is_admin_only
+        # Администраторы не имеют доступа к чатам
+        if is_admin_only(request.user):
+            messages.info(request, 'Администраторы не имеют доступа к чатам. Используйте админ-панель.')
+            return redirect('admin:index')
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_queryset(self):
         # Проверяем доступ
         user = self.request.user
+        
         if hasattr(user, 'doctor'):
             # Доктор видит свои чаты
             return Chat.objects.filter(request__doctor=user.doctor)
@@ -127,10 +165,17 @@ class MessageSendView(LoginRequiredMixin, View):
     """Отправка сообщения в чат"""
     
     def post(self, request, chat_pk):
+        from personal.models import is_admin_only
         chat = get_object_or_404(Chat, pk=chat_pk)
         
         # Проверяем доступ
         user = request.user
+        
+        # Администраторы не могут отправлять сообщения
+        if is_admin_only(user):
+            messages.error(request, 'Доступ запрещён. Администраторы не могут отправлять сообщения.')
+            return redirect('homepage')
+        
         if hasattr(user, 'doctor'):
             if chat.request.doctor != user.doctor:
                 messages.error(request, 'Доступ запрещён.')
@@ -161,7 +206,7 @@ class MessageSendView(LoginRequiredMixin, View):
         return redirect('chat:chat_detail', pk=chat_pk)
 
 
-class PatientChatsListView(DataMixin, LoginRequiredMixin, ListView):
+class PatientChatsListView(DataMixin, LoginRequiredMixin, PatientRequiredMixin, ListView):
     """Список всех заявок пациента с таблицей"""
     model = Request
     template_name = 'chat/patient_chats.html'

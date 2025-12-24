@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block seo %}
+<title>Редактирование профиля доктора - Healthcare</title>
+{% endblock seo %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'css/forms.css' %}" />
+<link rel="stylesheet" href="{% static 'css/profile.css' %}" />
+{% endblock styles %}
+
+{% block content %}
+<div class="edit-form form-container">
+    <h1>Редактирование профиля доктора</h1>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% if field.name == 'photo' and field.value %}
+                    <div class="current-photo">
+                        <p>Текущее фото:</p>
+                        <img src="{{ field.value.url }}" alt="Текущее фото профиля" class="profile-photo-preview">
+                    </div>
+                {% endif %}
+                {{ field }}
+                {% if field.errors %}
+                    <ul class="error-list">
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        {% endfor %}
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a href="{% url 'personal:doctor_profile' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock content %}

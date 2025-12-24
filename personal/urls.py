@@ -5,7 +5,10 @@ from personal.views import (
     UserLogoutView,
     UserProfileView,
     UserProfileUpdateView,
+    DoctorProfileView,
+    DoctorProfileUpdateView,
     UserDeleteView,
+    DoctorDeleteView,
     UserPasswordResetView,
     UserPasswordResetDoneView,
     UserPasswordResetConfirmView,
@@ -35,5 +38,8 @@ urlpatterns = [
     # Профиль
     path('profile/', UserProfileView.as_view(), name='profile'),
     path('profile/edit/', UserProfileUpdateView.as_view(), name='profile_edit'),
+    path('doctor/profile/', DoctorProfileView.as_view(), name='doctor_profile'),
+    path('doctor/profile/edit/', DoctorProfileUpdateView.as_view(), name='doctor_profile_edit'),
     path('profile/delete/', UserDeleteView.as_view(), name='account_delete'),
+    path('doctor/profile/delete/', DoctorDeleteView.as_view(), name='doctor_account_delete'),
 ]

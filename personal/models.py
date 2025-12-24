@@ -1,8 +1,11 @@
 import os
 import uuid
 from django.db import models
+from django.db.models.signals import pre_save, pre_delete
+from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
 
 
 def generate_profile_photo_filename(instance, filename):
@@ -72,6 +75,33 @@ class UserProfile(BaseProfile):
     # Дополнительные метаданные
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
     
+    def clean(self):
+        """Валидация: пользователь не может быть одновременно пациентом и доктором"""
+        super().clean()
+        if self.user_id:
+            # Проверяем, не является ли этот пользователь уже доктором
+            # Если это новый объект или user изменился, проверяем наличие Doctor
+            if not self.pk:
+                # Новый объект - проверяем наличие Doctor
+                if Doctor.objects.filter(user=self.user).exists():
+                    raise ValidationError({
+                        'user': 'Этот пользователь уже является доктором. Пользователь не может быть одновременно пациентом и доктором.'
+                    })
+            else:
+                # Существующий объект - проверяем, не изменился ли user
+                old_instance = UserProfile.objects.get(pk=self.pk)
+                if old_instance.user_id != self.user_id:
+                    # User изменился - проверяем наличие Doctor у нового user
+                    if Doctor.objects.filter(user=self.user).exists():
+                        raise ValidationError({
+                            'user': 'Этот пользователь уже является доктором. Пользователь не может быть одновременно пациентом и доктором.'
+                        })
+    
+    def save(self, *args, **kwargs):
+        """Переопределяем save для вызова clean перед сохранением"""
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         full_name = self.get_full_name()
         return full_name if full_name else self.user.username
@@ -109,9 +139,121 @@ class Doctor(BaseProfile):
     first_name = models.CharField(max_length=100, verbose_name="Имя")
     last_name = models.CharField(max_length=100, verbose_name="Фамилия")
     
+    def clean(self):
+        """Валидация: пользователь не может быть одновременно пациентом и доктором"""
+        super().clean()
+        if self.user_id:
+            # Проверяем, не является ли этот пользователь уже пациентом
+            # Если это новый объект или user изменился, проверяем наличие UserProfile
+            if not self.pk:
+                # Новый объект - проверяем наличие UserProfile
+                if UserProfile.objects.filter(user=self.user).exists():
+                    raise ValidationError({
+                        'user': 'Этот пользователь уже является пациентом. Пользователь не может быть одновременно пациентом и доктором.'
+                    })
+            else:
+                # Существующий объект - проверяем, не изменился ли user
+                old_instance = Doctor.objects.get(pk=self.pk)
+                if old_instance.user_id != self.user_id:
+                    # User изменился - проверяем наличие UserProfile у нового user
+                    if UserProfile.objects.filter(user=self.user).exists():
+                        raise ValidationError({
+                            'user': 'Этот пользователь уже является пациентом. Пользователь не может быть одновременно пациентом и доктором.'
+                        })
+    
+    def save(self, *args, **kwargs):
+        """Переопределяем save для вызова clean перед сохранением"""
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return f"Доктор {self.get_full_name()} ({self.get_specialization_display()})"
     
     class Meta:
         verbose_name = "Доктор"
         verbose_name_plural = "Доктора"
+
+
+# Helper-функции для проверки типа пользователя
+def is_doctor(user):
+    """Проверяет, является ли пользователь доктором"""
+    return hasattr(user, 'doctor') and user.doctor is not None
+
+
+def is_patient(user):
+    """Проверяет, является ли пользователь пациентом"""
+    return hasattr(user, 'profile') and user.profile is not None
+
+
+def get_user_type(user):
+    """Возвращает тип пользователя: 'doctor', 'patient' или None"""
+    if is_doctor(user):
+        return 'doctor'
+    elif is_patient(user):
+        return 'patient'
+    return None
+
+
+def is_admin_only(user):
+    """Проверяет, является ли пользователь администратором без профиля/доктора"""
+    if not user.is_authenticated:
+        return False
+    # Администратор - это пользователь с is_staff=True, но без профиля и без доктора
+    return user.is_staff and not is_doctor(user) and not is_patient(user)
+
+
+# Сигналы для дополнительной защиты на уровне БД
+# Примечание: основная валидация выполняется в методах clean() и save() моделей
+# Сигналы служат дополнительным уровнем защиты
+@receiver(pre_save, sender=UserProfile)
+def prevent_userprofile_doctor_conflict(sender, instance, **kwargs):
+    """Дополнительная проверка перед сохранением UserProfile"""
+    if instance.user_id:
+        # Проверяем наличие Doctor у этого пользователя
+        doctor_exists = Doctor.objects.filter(user=instance.user).exists()
+        if doctor_exists:
+            # Если это новый объект или user изменился
+            if not instance.pk:
+                raise ValidationError(
+                    'Пользователь не может быть одновременно пациентом и доктором.'
+                )
+            else:
+                # Проверяем, изменился ли user
+                try:
+                    old_instance = UserProfile.objects.get(pk=instance.pk)
+                    if old_instance.user_id != instance.user_id:
+                        raise ValidationError(
+                            'Пользователь не может быть одновременно пациентом и доктором.'
+                        )
+                except UserProfile.DoesNotExist:
+                    # Объект не существует в БД, значит это новый объект
+                    raise ValidationError(
+                        'Пользователь не может быть одновременно пациентом и доктором.'
+                    )
+
+
+@receiver(pre_save, sender=Doctor)
+def prevent_doctor_userprofile_conflict(sender, instance, **kwargs):
+    """Дополнительная проверка перед сохранением Doctor"""
+    if instance.user_id:
+        # Проверяем наличие UserProfile у этого пользователя
+        profile_exists = UserProfile.objects.filter(user=instance.user).exists()
+        if profile_exists:
+            # Если это новый объект или user изменился
+            if not instance.pk:
+                raise ValidationError(
+                    'Пользователь не может быть одновременно пациентом и доктором.'
+                )
+            else:
+                # Проверяем, изменился ли user
+                try:
+                    old_instance = Doctor.objects.get(pk=instance.pk)
+                    if old_instance.user_id != instance.user_id:
+                        raise ValidationError(
+                            'Пользователь не может быть одновременно пациентом и доктором.'
+                        )
+                except Doctor.DoesNotExist:
+                    # Объект не существует в БД, значит это новый объект
+                    raise ValidationError(
+                        'Пользователь не может быть одновременно пациентом и доктором.'
+                    )

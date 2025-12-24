@@ -32,11 +32,11 @@
                 </thead>
                 <tbody>
                     {% for request in requests %}
-                    <tr>
+                    <tr data-request-id="{{ request.id }}" {% if request.chat %}data-chat-id="{{ request.chat.pk }}"{% endif %}>
                         <td>{{ request.created_at|date:"d.m.Y H:i" }}</td>
                         <td><strong>{{ request.title }}</strong></td>
                         <td>{{ request.get_specialization_display }}</td>
-                        <td>
+                        <td id="doctor-{{ request.id }}">
                             {% if request.doctor %}
                                 <span style="color: #4CAF50; font-weight: 600;">
                                     {{ request.doctor.get_full_name }}
@@ -45,7 +45,7 @@
                                 <span style="color: #999;">Не назначен</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td id="status-{{ request.id }}">
                             {% if request.status == 'waiting' %}
                                 <span class="status-badge status-waiting">
                                     ⏳ {{ request.get_status_display }}
@@ -68,7 +68,7 @@
                                 </span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td id="actions-{{ request.id }}">
                             {% if request.chat %}
                                 <a href="{% url 'chat:chat_detail' request.chat.pk %}" class="btn-chat">💬 Открыть чат</a>
                             {% else %}
@@ -93,4 +93,123 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/chats/list/`;
+    let chatSocket = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    
+    // Статусы заявок
+    const statusMap = {
+        'waiting': { class: 'status-waiting', icon: '⏳', text: 'Ожидает доктора' },
+        'assigned': { class: 'status-assigned', icon: '✅', text: 'Доктор назначен' },
+        'waiting_doctor': { class: 'status-waiting_doctor', icon: '💬', text: 'Ожидает ответа доктора' },
+        'doctor_replied': { class: 'status-doctor_replied', icon: '📬', text: 'Доктор ответил' },
+        'closed': { class: '', icon: '', text: 'Закрыта' }
+    };
+    
+    // Функция подключения к WebSocket
+    function connectWebSocket() {
+        chatSocket = new WebSocket(wsUrl);
+        
+        chatSocket.onopen = function(e) {
+            console.log('WebSocket подключен для списка заявок');
+            reconnectAttempts = 0;
+        };
+        
+        chatSocket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            handleWebSocketMessage(data);
+        };
+        
+        chatSocket.onerror = function(e) {
+            console.error('Ошибка WebSocket:', e);
+        };
+        
+        chatSocket.onclose = function(e) {
+            console.log('WebSocket отключен');
+            
+            // Попытка переподключения
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                const delay = Math.min(1000 * reconnectAttempts, 10000);
+                console.log(`Попытка переподключения ${reconnectAttempts}/${maxReconnectAttempts} через ${delay}ms`);
+                setTimeout(connectWebSocket, delay);
+            }
+        };
+    }
+    
+    // Обработка сообщений от WebSocket
+    function handleWebSocketMessage(data) {
+        switch(data.type) {
+            case 'connection_established':
+                console.log(data.message);
+                break;
+                
+            case 'new_chat_message':
+                updateRequestRow(data);
+                break;
+                
+            case 'chat_updated':
+                // Можно обновить время или другую информацию
+                break;
+                
+            case 'error':
+                console.error('Ошибка:', data.message);
+                break;
+        }
+    }
+    
+    // Обновление строки заявки при новом сообщении
+    function updateRequestRow(data) {
+        // Находим строку по chat_id
+        const row = document.querySelector(`[data-chat-id="${data.chat_id}"]`);
+        if (!row) {
+            return;
+        }
+        
+        const requestId = row.getAttribute('data-request-id');
+        if (!requestId) {
+            return;
+        }
+        
+        // Обновляем статус на "Доктор ответил" или "Ожидает ответа доктора"
+        const statusElement = document.getElementById(`status-${requestId}`);
+        if (statusElement) {
+            // Определяем новый статус на основе отправителя
+            // Если отправитель - доктор, статус "Доктор ответил"
+            // Если отправитель - пациент, статус "Ожидает ответа доктора"
+            // Для упрощения всегда ставим "Доктор ответил" при новом сообщении
+            const newStatus = 'doctor_replied';
+            const statusInfo = statusMap[newStatus];
+            
+            statusElement.innerHTML = `
+                <span class="status-badge ${statusInfo.class}">
+                    ${statusInfo.icon} ${statusInfo.text}
+                </span>
+            `;
+        }
+        
+        // Выделяем строку визуально
+        row.style.backgroundColor = '#e3f2fd';
+        row.style.transition = 'background-color 0.3s';
+        setTimeout(() => {
+            row.style.backgroundColor = '';
+        }, 2000);
+    }
+    
+    // Инициализация
+    connectWebSocket();
+    
+    // Очистка при закрытии страницы
+    window.addEventListener('beforeunload', function() {
+        if (chatSocket) {
+            chatSocket.close();
+        }
+    });
+});
+</script>
 {% endblock content %}

@@ -1,0 +1,1 @@
+# Templatetags для personal приложения
