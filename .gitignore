@@ -7,7 +7,7 @@ docx/
 #*.sqlite3
 BRD.md
 testquest.md
-README.md
+#README.md
 create_test_data.py
 add_more_news.py
 
